@@ -55,21 +55,32 @@ long long round(long long n, int r) {
 
 template <class T>
 void test(long long max_size, const long long* sizes) {
-  T *A, *B, *C;
   long long N = max_size / sizeof(T);
-  A = allocate<T>(N, 0x1000);
-  B = allocate<T>(N, 0x1000);
-  C = allocate<T>(N, 0x1000);
-  if (!A || !B || !C) {
+  T *A1 = allocate<T>(N, 0x1000);
+  T *A2 = allocate<T>(N/2, 0x1000);
+  T *B2 = allocate<T>(N/2, 0x1000);
+  T *A3 = allocate<T>(N/3, 0x1000);
+  T *B3 = allocate<T>(N/3, 0x1000);
+  T *C3 = allocate<T>(N/3, 0x1000);
+  if (!A1 || !A2 || !B2 || !A3 || !B3 || !C3) {
     std::cerr << "Error: Allocation failed. Aborting." << std::endl;
     abort();
   }
 
-  OMP(parallel for schedule(static) firstprivate(A, B, C))
+  OMP(parallel for schedule(static) shared(A1))
   for (long long i = 0; i < N; ++i) {
-    A[i] = 0;
-    B[i] = 0;
-    C[i] = 0;
+    A1[i] = 0;
+  }
+  OMP(parallel for schedule(static) shared(A2,B2))
+  for (long long i = 0; i < N/2; ++i) {
+    A2[i] = 0;
+    B2[i] = 0;
+  }
+  OMP(parallel for schedule(static) shared(A3,B3,C3))
+  for (long long i = 0; i < N/3; ++i) {
+    A3[i] = 0;
+    B3[i] = 0;
+    C3[i] = 0;
   }
 
   std::cout << "Testing bandwidth with type: " << name<T>() << std::endl;
@@ -115,17 +126,17 @@ void test(long long max_size, const long long* sizes) {
     //std::cout << "  tries: "    << std::setw(4) << tries;
     std::cout << std::flush;
 
-    double  read_b = max_bandwidth([A, n, repeat, tries](const bandwidth* b){ return b->read(A, round(n, b->kern), repeat, tries); });
+    double  read_b = max_bandwidth([A1, n, repeat, tries](const bandwidth* b){ return b->read(A1, round(n, b->kern), repeat, tries); });
     std::cout << "  \tread: "  << std::setw(6) << bytes( read_b) << "/s" << std::flush;
-    double write_b = max_bandwidth([A, n, repeat, tries](const bandwidth* b){ return b->write(A, round(n, b->kern), repeat, tries); });
+    double write_b = max_bandwidth([A1, n, repeat, tries](const bandwidth* b){ return b->write(A1, round(n, b->kern), repeat, tries); });
     std::cout << "  \twrite: " << std::setw(6) << bytes(write_b) << "/s" << std::flush;
-    double  copy_b = max_bandwidth([A, B, n, repeat, tries](const bandwidth* b){ return b->copy(A, B, round(n/2, b->kern), repeat, tries); });
+    double  copy_b = max_bandwidth([A2, B2, n, repeat, tries](const bandwidth* b){ return b->copy(A2, B2, round(n/2, b->kern), repeat, tries); });
     std::cout << "  \tcopy: "  << std::setw(6) << bytes( copy_b) << "/s" << std::flush;
-    double scale_b = max_bandwidth([A, B, n, repeat, tries](const bandwidth* b){ return b->scale(A, B, round(n/2, b->kern), repeat, tries); });
+    double scale_b = max_bandwidth([A2, B2, n, repeat, tries](const bandwidth* b){ return b->scale(A2, B2, round(n/2, b->kern), repeat, tries); });
     std::cout << "  \tscale: " << std::setw(6) << bytes(scale_b) << "/s" << std::flush;
-    double   add_b = max_bandwidth([A, B, C, n, repeat, tries](const bandwidth* b){ return b->add(A, B, C, round(n/3, b->kern), repeat, tries); });
+    double   add_b = max_bandwidth([A3, B3, C3, n, repeat, tries](const bandwidth* b){ return b->add(A3, B3, C3, round(n/3, b->kern), repeat, tries); });
     std::cout << "  \tadd: "   << std::setw(6) << bytes(  add_b) << "/s" << std::flush;
-    double triad_b = max_bandwidth([A, B, C, n, repeat, tries](const bandwidth* b){ return b->triad(A, B, C, round(n/3, b->kern), repeat, tries); });
+    double triad_b = max_bandwidth([A3, B3, C3, n, repeat, tries](const bandwidth* b){ return b->triad(A3, B3, C3, round(n/3, b->kern), repeat, tries); });
     std::cout << "  \ttriad: " << std::setw(6) << bytes(triad_b) << "/s" << std::flush;
 
     std::cout << std::endl;
@@ -133,9 +144,12 @@ void test(long long max_size, const long long* sizes) {
     ++sizes;
   }
 
-  deallocate(A);
-  deallocate(B);
-  deallocate(C);
+  deallocate(A1);
+  deallocate(A2);
+  deallocate(B2);
+  deallocate(A3);
+  deallocate(B3);
+  deallocate(C3);
 }
 
 int main() {
