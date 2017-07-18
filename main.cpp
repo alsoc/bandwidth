@@ -64,6 +64,7 @@ void test(long long max_size, const long long* sizes) {
     abort();
   }
 
+  OMP(parallel for schedule(static) firstprivate(A, B, C))
   for (long long i = 0; i < N; ++i) {
     A[i] = 0;
     B[i] = 0;
@@ -187,15 +188,21 @@ int main() {
     0x4000000, //  64 MB
     0x6000000, //  96 MB
     0x8000000, // 128 MB
-    0xC000000, // 192 MB
-    0x10000000, // 256 MB
-    0x18000000, // 384 MB
-    0x20000000, // 512 MB
+    //0xC000000, // 192 MB
+    //0x10000000, // 256 MB
+    //0x18000000, // 384 MB
+    //0x20000000, // 512 MB
     0
   };
+  long long max = 0;
+  const long long *size = sizes;
+  while (*size) {
+    max = (max < *size) ? *size : max;
+    ++size;
+  }
 
-  test<float >(0x20000000, sizes);
-  test<double>(0x20000000, sizes);
+  test<float >(max, sizes);
+  test<double>(max, sizes);
 
   return 0;
 }
