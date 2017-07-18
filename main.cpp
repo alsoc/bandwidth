@@ -1,0 +1,201 @@
+#include <iostream>
+#include <iomanip>
+#include <cmath>
+#include "allocation.h"
+#include "bandwidth.h"
+
+#ifdef _OPENMP
+#include "omp.h"
+#endif
+
+template <class T>
+constexpr const char* name() noexcept {
+  return __PRETTY_FUNCTION__;
+}
+template <> constexpr const char* name<float >() noexcept { return "float" ; }
+template <> constexpr const char* name<double>() noexcept { return "double"; }
+
+struct bytes {
+  double n = 0;
+  bytes() = default;
+  bytes(double n) : n(n) {}
+  friend std::ostream& operator<<(std::ostream& out, bytes B) {
+    double b = B.n;
+    static const char letters[] = "\00fpnum KMGTPE\00";
+    const char* letter = letters+6;
+    while (*letter && std::abs(b) >= 1024.) {
+      b /= 1024.;
+      ++letter;
+    }
+    while (*letter && std::abs(b) < 1.) {
+      b *= 1024.;
+      --letter;
+    }
+    out << b << ' ' << *letter << 'B';
+    return out;
+  }
+};
+
+template <class F>
+double max_bandwidth(F&& f) {
+  double max_bandwidth = -1./0.;
+  const bandwidth* b = bandwidth_benches;
+  while (b->kern != 0) {
+    double cur_bandwidth = f(b);
+    max_bandwidth = std::max(max_bandwidth, cur_bandwidth);
+    ++b;
+  }
+  return max_bandwidth;
+}
+
+long long round(long long n, int r) {
+  return (n/r) * r;
+}
+
+template <class T>
+void test(long long max_size, const long long* sizes) {
+  T *A, *B, *C;
+  long long N = max_size / sizeof(T);
+  A = allocate<T>(N, 0x1000);
+  B = allocate<T>(N, 0x1000);
+  C = allocate<T>(N, 0x1000);
+  if (!A || !B || !C) {
+    std::cerr << "Error: Allocation failed. Aborting." << std::endl;
+    abort();
+  }
+
+  for (long long i = 0; i < N; ++i) {
+    A[i] = 0;
+    B[i] = 0;
+    C[i] = 0;
+  }
+
+  std::cout << "Testing bandwidth with type: " << name<T>() << std::endl;
+  std::cout << std::setprecision(3);
+  const int min_tries = 4, min_repeat = 1;
+  
+  while (*sizes != 0) {
+    if (*sizes > max_size) continue;
+    long long n = *sizes / sizeof(T);
+    int repeat = 1;
+    int tries = 1;
+
+    double cost = 1e8;
+#ifdef _OPENMP
+    int k = 0;
+#pragma omp parallel 
+    {
+#pragma omp atomic
+      ++k;
+    }
+    cost *= k;
+#endif
+    double cost_ratio = cost / static_cast<double>(*sizes);
+#ifdef _OPENMP
+    repeat = std::sqrt(cost_ratio) / 2.;
+#else
+    repeat = std::sqrt(cost_ratio) /  5.;
+#endif
+    double l = std::log2(cost_ratio);
+    if (l < 1.) l = 1.;
+    if (repeat < 1)          repeat = 1;
+    tries = cost_ratio / repeat;
+    repeat *= l;
+    if (tries  < 1)          tries  = 1;
+    if (tries  < min_tries)  tries  = min_tries;
+    //if (tries  > max_tries)  tries  = max_tries;
+    if (repeat < min_repeat) repeat = min_repeat;
+    //if (repeat > max_repeat) repeat = max_repeat;
+
+
+    std::cout << "  size: "    << std::setw(6) << bytes(*sizes);
+    //std::cout << "  repeat: "    << std::setw(4) << repeat;
+    //std::cout << "  tries: "    << std::setw(4) << tries;
+    std::cout << std::flush;
+
+    double  read_b = max_bandwidth([A, n, repeat, tries](const bandwidth* b){ return b->read(A, round(n, b->kern), repeat, tries); });
+    std::cout << "  \tread: "  << std::setw(6) << bytes( read_b) << "/s" << std::flush;
+    double write_b = max_bandwidth([A, n, repeat, tries](const bandwidth* b){ return b->write(A, round(n, b->kern), repeat, tries); });
+    std::cout << "  \twrite: " << std::setw(6) << bytes(write_b) << "/s" << std::flush;
+    double  copy_b = max_bandwidth([A, B, n, repeat, tries](const bandwidth* b){ return b->copy(A, B, round(n/2, b->kern), repeat, tries); });
+    std::cout << "  \tcopy: "  << std::setw(6) << bytes( copy_b) << "/s" << std::flush;
+    double scale_b = max_bandwidth([A, B, n, repeat, tries](const bandwidth* b){ return b->scale(A, B, round(n/2, b->kern), repeat, tries); });
+    std::cout << "  \tscale: " << std::setw(6) << bytes(scale_b) << "/s" << std::flush;
+    double   add_b = max_bandwidth([A, B, C, n, repeat, tries](const bandwidth* b){ return b->add(A, B, C, round(n/3, b->kern), repeat, tries); });
+    std::cout << "  \tadd: "   << std::setw(6) << bytes(  add_b) << "/s" << std::flush;
+    double triad_b = max_bandwidth([A, B, C, n, repeat, tries](const bandwidth* b){ return b->triad(A, B, C, round(n/3, b->kern), repeat, tries); });
+    std::cout << "  \ttriad: " << std::setw(6) << bytes(triad_b) << "/s" << std::flush;
+
+    std::cout << std::endl;
+
+    ++sizes;
+  }
+
+  deallocate(A);
+  deallocate(B);
+  deallocate(C);
+}
+
+int main() {
+#ifdef _OPENMP
+#pragma omp parallel 
+  {
+#pragma omp master
+    std::cerr << omp_get_num_threads() << " threads required";
+  }
+  int k = 0;
+#pragma omp parallel 
+  {
+#pragma omp atomic
+    ++k;
+  }
+  std::cerr << "\t" << k << " active threads";
+  std::cerr << std::endl;
+#else
+  std::cerr << "OPENMP disabled\n";
+  std::cerr << "1 thread required\t1 active thread" << std::endl;
+#endif
+  static long long sizes[] = {
+    0x0001000, //   4 KB
+    0x0001800, //   6 KB
+    0x0002000, //   8 KB
+    0x0003000, //  12 KB
+    0x0004000, //  16 KB
+    0x0006000, //  24 KB
+    0x0008000, //  32 KB // L1
+    0x000C000, //  48 KB
+    0x0010000, //  64 KB
+    0x0018000, //  96 KB
+    0x0020000, // 128 KB
+    0x0030000, // 192 KB
+    0x0040000, // 256 KB // L2
+    0x0060000, // 384 KB
+    0x0080000, // 512 KB
+    0x00C0000, // 768 KB
+    0x0100000, //   1 MB
+    0x0180000, // 1.5 MB
+    0x0200000, //   2 MB
+    0x0300000, //   3 MB
+    0x0400000, //   4 MB // L3
+    0x0600000, //   6 MB
+    0x0800000, //   8 MB
+    0x0C00000, //  12 MB
+    0x1000000, //  16 MB
+    0x1800000, //  24 MB
+    0x2000000, //  32 MB
+    0x3000000, //  48 MB
+    0x4000000, //  64 MB
+    0x6000000, //  96 MB
+    0x8000000, // 128 MB
+    0xC000000, // 192 MB
+    0x10000000, // 256 MB
+    0x18000000, // 384 MB
+    0x20000000, // 512 MB
+    0
+  };
+
+  test<float >(0x20000000, sizes);
+  test<double>(0x20000000, sizes);
+
+  return 0;
+}
