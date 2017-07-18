@@ -3,6 +3,7 @@
 #include <cmath>
 #include "allocation.h"
 #include "bandwidth.h"
+#include "omp-helper.h"
 
 #ifdef _OPENMP
 #include "omp.h"
