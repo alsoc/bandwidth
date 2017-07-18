@@ -24,13 +24,13 @@ struct bytes {
     double b = B.n;
     static const char letters[] = "\00fpnum KMGTPE\00";
     const char* letter = letters+6;
-    while (*letter && std::abs(b) >= 1024.) {
-      b /= 1024.;
-      ++letter;
-    }
-    while (*letter && std::abs(b) < 1.) {
+    while (letter[0] && letter[-1] && std::abs(b) < 1.) {
       b *= 1024.;
       --letter;
+    }
+    while (letter[0] && letter[+1] && std::abs(b) > 999.) {
+      b /= 1024.;
+      ++letter;
     }
     out << b << ' ' << *letter << 'B';
     return out;
