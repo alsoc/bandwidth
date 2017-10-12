@@ -115,7 +115,11 @@ bool cannot_be_fast(int N) {
   constexpr int regn = 16;
 #else
   constexpr int width = 128;
+#if defined(__aarch64__)
+  constexpr int regn = 32;
+#else
   constexpr int regn = 16;
+#endif
 #endif
   constexpr int card = width / (8 * sizeof(T));
 
