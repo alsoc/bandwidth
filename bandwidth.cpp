@@ -1,30 +1,44 @@
+#include <iostream>
 #include "bandwidth.h"
 #include "stream.h"
 #include "omp-helper.h"
+#include <omp.h>
 
 namespace {
   template <class F>
   double bench(F&& f, int repeat = 1, int tries = 1) noexcept {
     using counter_t = Timer::counter_t;
     using diff_t = Timer::diff_t;
-    diff_t d = 0, dmin = -1;
+
+    static diff_t dmin = -1, dmax = 0;
+    OMP(master) {
+      dmin = -1;
+      dmax = 0;
+    }
     counter_t t0, t1;
     for (int i = 0; i < tries; i++) {
-      OMP(parallel reduction(max: d) private(t0, t1))
-      {
-        Timer::reset();
-        t0 = Timer::read();
-        for (int j = 0; j < repeat; j++) {
-          asm volatile ("");
-          f();
-          asm volatile ("");
-        }
-        t1 = Timer::read();
-        d = Timer::diff(t0, t1);
+      Timer::reset();
+      OMP(barrier);
+      asm volatile ("");
+      counter_t t0 = Timer::read();
+      for (int j = 0; j < repeat; j++) {
+        asm volatile ("");
+        f();
+        asm volatile ("");
       }
-      dmin = (dmin < 0 || d < dmin) ? d : dmin;
+      counter_t t1 = Timer::read();
+      asm volatile ("");
+      diff_t d = Timer::diff(t0, t1);
+      OMP(critical) {
+        dmax = (dmax < 0 || d > dmax) ? d : dmax;
+      }
+      OMP(barrier);
+      OMP(master) {
+        dmin = (dmin < 0 || dmax < dmin) ? dmax : dmin;
+        dmax = 0;
+      }
     }
-    return 1e-9 * static_cast<double>(dmin) / repeat;
+    return static_cast<double>(dmin) / (repeat * Timer::frequency);
   }
 
   template <int N>
