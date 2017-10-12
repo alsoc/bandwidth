@@ -1,9 +1,16 @@
 #include <iostream>
 #include <iomanip>
 #include <cmath>
+#include <cstring>
+#include <vector>
+#include <algorithm>
 #include "allocation.h"
 #include "bandwidth.h"
 #include "omp-helper.h"
+
+#define OPTPARSE_API static
+#define OPTPARSE_IMPLEMENTATION
+#include "optparse/optparse.h"
 
 #ifdef _OPENMP
 #include "omp.h"
@@ -16,24 +23,84 @@ constexpr const char* name() noexcept {
 template <> constexpr const char* name<float >() noexcept { return "float" ; }
 template <> constexpr const char* name<double>() noexcept { return "double"; }
 
+bool bytes_power_1024 = false;
 struct bytes {
   double n = 0;
   bytes() = default;
   bytes(double n) : n(n) {}
+  bytes(const char* s) {
+    char* p = nullptr;
+    n = std::strtod(s, &p);
+    if (!p) return;
+    while (*p == ' ') ++p;
+    double power = 1000.;
+    if (*p != 0 && p[1] == 'i') power = 1024.;
+    switch (*p) {
+      case 'f':
+        n /= power;
+        [[fallthrough]];
+      case 'p':
+        n /= power;
+        [[fallthrough]];
+      case 'n':
+        n /= power;
+        [[fallthrough]];
+      case 'u':
+        n /= power;
+        [[fallthrough]];
+      case 'm':
+        n /= power;
+        break;
+      case 'E':
+        n *= power;
+        [[fallthrough]];
+      case 'P':
+        n *= power;
+        [[fallthrough]];
+      case 'T':
+        n *= power;
+        [[fallthrough]];
+      case 'G':
+        n *= power;
+        [[fallthrough]];
+      case 'M':
+        n *= power;
+        [[fallthrough]];
+      case 'k':
+      case 'K':
+        n *= power;
+        [[fallthrough]];
+    }
+  }
   friend std::ostream& operator<<(std::ostream& out, bytes B) {
     double b = B.n;
     static const char letters[] = "\00fpnum KMGTPE\00";
     const char* letter = letters+6;
+    double power = bytes_power_1024 ? 1024. : 1000.;
     while (letter[0] && letter[-1] && std::abs(b) < 1.) {
-      b *= 1024.;
+      b *= power;
       --letter;
     }
     while (letter[0] && letter[+1] && std::abs(b) > 999.) {
-      b /= 1024.;
+      b /= power;
       ++letter;
     }
-    out << b << ' ' << *letter << 'B';
+    if (std::abs(b) < 1e-4) {
+      out << "0 ";
+      if (bytes_power_1024) out << ' ';
+      out << 'B';
+      return out;
+    }
+    out << b << ' ' << *letter;
+    if (bytes_power_1024) {
+      out << (*letter != ' ' ? 'i' : ' ');
+    }
+    out << 'B';
     return out;
+  }
+
+  operator double() const {
+    return n;
   }
 };
 
@@ -69,24 +136,19 @@ int get_num_threads() {
 }
 
 template <class T>
-void test(long long max_size, const long long* sizes) {
-  long long N = max_size / sizeof(T);
-
+void test(const std::vector<long long>& sizes, double cost) {
   std::cout << "Testing bandwidth with type: " << name<T>() << std::endl;
   std::cout << std::setprecision(3);
   const int min_tries = 2, min_repeat = 1;
 
   int k = get_num_threads();
   
-  while (*sizes != 0) {
-    if (*sizes > max_size) continue;
+  for (long long size : sizes) {
 
-
-    long long n = *sizes / sizeof(T) / k;
+    long long n = size / sizeof(T) / k;
     int repeat = 1;
     int tries = 1;
 
-    double cost = 2e6;
     double cost_ratio = cost / static_cast<double>(n);
 #ifdef _OPENMP
     repeat = std::sqrt(cost_ratio) / 2.;
@@ -159,72 +221,187 @@ void test(long long max_size, const long long* sizes) {
     }
 
     std::cout << std::endl;
-
-    ++sizes;
   }
 }
 
-int main() {
-#ifdef _OPENMP
-  std::cerr << omp_get_num_threads() << " threads required";
-  std::cerr << "\t" << get_num_threads() << " active threads";
-  std::cerr << std::endl;
-#else
-  std::cerr << "OPENMP disabled\n";
-  std::cerr << "1 thread required\t1 active thread" << std::endl;
-#endif
-  static long long sizes[] = {
-    0x00001000ll, //   4 KB
-    0x00001800ll, //   6 KB
-    0x00002000ll, //   8 KB
-    0x00003000ll, //  12 KB
-    0x00004000ll, //  16 KB
-    0x00006000ll, //  24 KB
-    0x00008000ll, //  32 KB // L1
-    0x0000C000ll, //  48 KB
-    0x00010000ll, //  64 KB
-    0x00018000ll, //  96 KB
-    0x00020000ll, // 128 KB
-    0x00030000ll, // 192 KB
-    0x00040000ll, // 256 KB // L2
-    0x00060000ll, // 384 KB // L2
-    0x00080000ll, // 512 KB // L2
-    0x000C0000ll, // 768 KB
-    0x00100000ll, //   1 MB
-    0x00180000ll, // 1.5 MB
-    0x00200000ll, //   2 MB
-    0x00300000ll, //   3 MB
-    0x00400000ll, //   4 MB // L3
-    0x00600000ll, //   6 MB // L3
-    0x00800000ll, //   8 MB // L3
-    0x00C00000ll, //  12 MB // L3
-    0x01000000ll, //  16 MB // L3
-    0x01800000ll, //  24 MB
-    0x02000000ll, //  32 MB
-    0x03000000ll, //  48 MB
-    0x04000000ll, //  64 MB
-    0x06000000ll, //  96 MB
-    0x08000000ll, // 128 MB
-    0x0C000000ll, // 192 MB
-    0x10000000ll, // 256 MB
-    0x18000000ll, // 384 MB
-    0x20000000ll, // 512 MB
-    0x30000000ll, // 768 MB
-    0x40000000ll, //   1 GB
-    0x60000000ll, // 1.5 GB
-    0x80000000ll, //   2 GB
-    0xC0000000ll, //   3 GB
-    0
+double default_cost = 2e6;
+long long default_min = bytes("4 KiB");
+long long default_max = bytes("512 MiB");
+
+const char* program_name = "bandwidth";
+void help(std::ostream& out) {
+  bytes_power_1024 = true;
+  out << "USAGE: " << program_name << " [options]\n";
+  out << "  measure the bandwidth of your memory (both caches and main memory)\n";
+  out << "\n";
+  out << "  options:\n";
+  out << "    -h, --help            Prints this message\n";
+  out << "    -v, --verbose         Verbose output\n";
+  out << "    -m, --min size        sets the minimum buffer size to \"size\" (default: NPROC * " << bytes(default_min) << ")\n";
+  out << "    -M, --max size        sets the maximum buffer size to \"size\" (default: " << bytes(default_max) << ")\n";
+  out << "    -n, --n   n           sets the number of buffer size being tested to \"n\" (default: 1 + 2 log2(max / min) )\n";
+  out << "    -c, --cost cost       sets the goal cost of the tests: higher means more retries per test (default: " << default_cost << ")\n";
+  out << "    -s, --size list       sets the buffer size being tested to a specific list "
+                                    "(default: n sizes logarithmically spaced from min to max)\n";
+  out << "    -i, --binary-prefix   uses binary prefixes (eg: KiB, MiB) for the output\n";
+  out << std::flush;
+	return;
+}
+
+int main(int argc, char *argv[]) {
+  program_name = argv[0];
+  const char* arg;
+  bool verbose = false;
+  int opt, longindex;
+  struct optparse options;
+  struct optparse_long longopts[] = {
+    {"help",          'h', OPTPARSE_NONE},
+    {"verbose",       'v', OPTPARSE_NONE},
+    {"min",           'm', OPTPARSE_REQUIRED},
+    {"max",           'M', OPTPARSE_REQUIRED},
+    {"n",             'n', OPTPARSE_REQUIRED},
+    {"cost",          'c', OPTPARSE_REQUIRED},
+    {"size",          's', OPTPARSE_REQUIRED},
+    {"type",          't', OPTPARSE_REQUIRED},
+    {"binary-prefix", 'i', OPTPARSE_NONE},
+    {0, 0, OPTPARSE_NONE}
   };
-  long long max = 0;
-  const long long *size = sizes;
-  while (*size) {
-    max = (max < *size) ? *size : max;
-    ++size;
+  optparse_init(&options, argv);
+  int k = get_num_threads();
+  options.permute = 0;
+
+  long long min_size = 0, max_size = 0;
+
+  // If a machine has a really lot of cores
+  if (8 * min_size > max_size) {
+    max_size = 8*min_size;
   }
 
-  test<float >(max, sizes);
-  test<double>(max, sizes);
+  long long n = 0;
+  double cost = default_cost;
+  std::vector<long long> sizes;
+
+  while (options.optind < argc) {
+    if ((opt = optparse_long(&options, longopts, &longindex)) != -1) {
+      switch (opt) {
+        case 'h': // help
+          help(std::cout);
+          exit(0);
+          break;
+        case 'v': // verbose
+          verbose = true;
+          break;
+        case 'm': // min
+          min_size = bytes(options.optarg);
+          break;
+        case 'M': // max
+          max_size = bytes(options.optarg);
+          break;
+        case 'n': // number of sizes
+          n = std::stod(options.optarg);
+          break;
+        case 'c': // goal cost
+          cost = std::stod(options.optarg);
+          break;
+        case 's': // sizes
+          {
+            const char *p = options.optarg;
+            sizes.clear();
+            while (*p) {
+              sizes.push_back(bytes(p));
+              while (*p && *p != ',') ++p;
+              if (*p) ++p;
+            }
+          }
+          break;
+        case 't': // types
+          std::cerr << "error: -t,--type option not yet implemented\n";
+          help(std::cerr);
+          exit(1);
+          break;
+        case 'i': // binary-prefix
+          bytes_power_1024 = true;
+          break;
+        case '?':
+          std::cerr << "error: unrecognized option\n";
+          help(std::cerr);
+          exit(1);
+          break;
+      }
+    } else {
+      std::cerr << "error: no command line argument expected\n";
+      help(std::cerr);
+      exit(1);
+    }
+  }
+
+  if (min_size < 1) {
+    min_size = k * default_min;
+  }
+  if (max_size < 1) {
+    max_size = default_max;
+
+    // If a machine has a really lot of cores
+    if (8 * k * default_min > max_size) {
+      max_size = 8*k*default_min;
+    }
+    if (max_size < min_size) {
+      max_size = min_size;
+    }
+  }
+
+  if (min_size > max_size) {
+    std::cerr << "error: min (" << bytes(min_size) << ") should not be larger than max (" << bytes(max_size) << ")" << std::endl;
+    help(std::cerr);
+    exit(1);
+  }
+
+  if (n < 1) {
+    n = 1 + 2 * std::ceil(std::log2(static_cast<double>(max_size) / static_cast<double>(min_size)));
+    if (n < 1) n = 1;
+  }
+
+  double granularity = k*bytes("1 KiB");
+
+  if (sizes.size() == 0) {
+    sizes.resize(n);
+    if (n == 1) {
+      sizes.front() = min_size;
+    } else {
+      double dmin = std::log2(double(min_size)), dmax = std::log2(double(max_size)), rN = 1. / double(n-1);
+
+      sizes.front() = min_size;
+      for (int i = 1; i < n-1; ++i) {
+        double s = std::exp2(dmin + i * (dmax - dmin) * rN);
+        sizes[i] = granularity * std::round(s / granularity);
+        sizes[i] = std::min(max_size, sizes[i]);
+        sizes[i] = std::max(min_size, sizes[i]);
+      }
+      sizes.back() = max_size;
+
+      sizes.erase(std::unique(sizes.begin(), sizes.end()), sizes.end());
+    }
+  }
+
+  if (verbose) {
+#ifdef _OPENMP
+    OMP(parallel) {
+      OMP(master)
+      std::cerr << omp_get_num_threads() << " threads required";
+    }
+    std::cerr << "\t" << k << " active threads";
+    std::cerr << std::endl;
+#else
+    std::cerr << "OPENMP disabled\n";
+    std::cerr << "1 thread required\t1 active thread" << std::endl;
+#endif
+
+    std::cerr << "min: " << bytes(min_size) << "\tmax: " << bytes(max_size) << "\tcost: " << cost << "\tn: " << n << " (" << sizes.size() << ")\tgranularity: " << bytes(granularity) << std::endl;
+  }
+
+  test<float >(sizes, cost);
+  test<double>(sizes, cost);
+
 
   return 0;
 }

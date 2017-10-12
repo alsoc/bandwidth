@@ -1,0 +1,3 @@
+[submodule "optparse"]
+	path = optparse
+	url = https://github.com/skeeto/optparse.git
