@@ -104,11 +104,33 @@ struct bytes {
   }
 };
 
-template <class F>
+
+template <class T>
+bool cannot_be_fast(int N) {
+#if defined(__AVX512F__) || defined(__KNC__)
+  constexpr int width = 512;
+  constexpr int regn = 32;
+#elif defined(__AVX__)
+  constexpr int width = 256;
+  constexpr int regn = 16;
+#else
+  constexpr int width = 128;
+  constexpr int regn = 16;
+#endif
+  constexpr int card = width / (8 * sizeof(T));
+
+  return N != 1 && (N < card || N > card*regn);
+}
+
+template <class T, class F>
 double max_bandwidth(F&& f) {
   double max_bandwidth = -1./0.;
   const bandwidth* b = bandwidth_benches;
   while (b->kern != 0) {
+    if (cannot_be_fast<T>(b->kern)) {
+      ++b;
+      continue;
+    }
     double cur_bandwidth = f(b);
     max_bandwidth = std::max(max_bandwidth, cur_bandwidth);
     ++b;
@@ -187,32 +209,32 @@ void test(const std::vector<long long>& sizes, double cost) {
       T *B3 = reinterpret_cast<T*>(round_up(reinterpret_cast<unsigned long long>(A3 + (n+2)/3), 0x1000));
       T *C3 = reinterpret_cast<T*>(round_up(reinterpret_cast<unsigned long long>(B3 + (n+2)/3), 0x1000));
 
-      double  read_b = k*max_bandwidth([A1, n, repeat, tries](const bandwidth* b){ return b->read(A1, round_down(n, b->kern), repeat, tries); });
+      double  read_b = k*max_bandwidth<T>([A1, n, repeat, tries](const bandwidth* b){ return b->read(A1, round_down(n, b->kern), repeat, tries); });
       OMP(master) {
         std::cout << "  \tread: "  << std::setw(6) << bytes( read_b) << "/s" << std::flush;
       }
 
-      double write_b = k*max_bandwidth([A1, n, repeat, tries](const bandwidth* b){ return b->write(A1, round_down(n, b->kern), repeat, tries); });
+      double write_b = k*max_bandwidth<T>([A1, n, repeat, tries](const bandwidth* b){ return b->write(A1, round_down(n, b->kern), repeat, tries); });
       OMP(master) {
         std::cout << "  \twrite: " << std::setw(6) << bytes(write_b) << "/s" << std::flush;
       }
 
-      double  copy_b = k*max_bandwidth([A2, B2, n, repeat, tries](const bandwidth* b){ return b->copy(A2, B2, round_down(n/2, b->kern), repeat, tries); });
+      double  copy_b = k*max_bandwidth<T>([A2, B2, n, repeat, tries](const bandwidth* b){ return b->copy(A2, B2, round_down(n/2, b->kern), repeat, tries); });
       OMP(master) {
         std::cout << "  \tcopy: "  << std::setw(6) << bytes( copy_b) << "/s" << std::flush;
       }
 
-      double scale_b = k*max_bandwidth([A2, B2, n, repeat, tries](const bandwidth* b){ return b->scale(A2, B2, round_down(n/2, b->kern), repeat, tries); });
+      double scale_b = k*max_bandwidth<T>([A2, B2, n, repeat, tries](const bandwidth* b){ return b->scale(A2, B2, round_down(n/2, b->kern), repeat, tries); });
       OMP(master) {
         std::cout << "  \tscale: " << std::setw(6) << bytes(scale_b) << "/s" << std::flush;
       }
 
-      double   add_b = k*max_bandwidth([A3, B3, C3, n, repeat, tries](const bandwidth* b){ return b->add(A3, B3, C3, round_down(n/3, b->kern), repeat, tries); });
+      double   add_b = k*max_bandwidth<T>([A3, B3, C3, n, repeat, tries](const bandwidth* b){ return b->add(A3, B3, C3, round_down(n/3, b->kern), repeat, tries); });
       OMP(master) {
         std::cout << "  \tadd: "   << std::setw(6) << bytes(  add_b) << "/s" << std::flush;
       }
 
-      double triad_b = k*max_bandwidth([A3, B3, C3, n, repeat, tries](const bandwidth* b){ return b->triad(A3, B3, C3, round_down(n/3, b->kern), repeat, tries); });
+      double triad_b = k*max_bandwidth<T>([A3, B3, C3, n, repeat, tries](const bandwidth* b){ return b->triad(A3, B3, C3, round_down(n/3, b->kern), repeat, tries); });
       OMP(master) {
         std::cout << "  \ttriad: " << std::setw(6) << bytes(triad_b) << "/s" << std::flush;
       }
