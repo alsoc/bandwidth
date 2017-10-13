@@ -160,9 +160,20 @@ int get_num_threads() {
   return k;
 }
 
+bool verbose = false;
+bool CSV = false;
+bool first = true;
+
 template <class T>
 void test(const std::vector<long long>& sizes, double cost) {
-  std::cout << "Testing bandwidth with type: " << name<T>() << std::endl;
+  if (CSV) {
+    if (first) {
+      std::cout << "type,size,read,write,copy,scale,add,triad" << std::endl;
+      first = false;
+    }
+  } else {
+    std::cout << "Testing bandwidth with type: " << name<T>() << std::endl;
+  }
   std::cout << std::setprecision(3);
   const int min_tries = 2, min_repeat = 1;
 
@@ -188,10 +199,16 @@ void test(const std::vector<long long>& sizes, double cost) {
     if (repeat < min_repeat) repeat = min_repeat;
     //if (repeat > max_repeat) repeat = max_repeat;
 
-    std::cout << "  size: "    << std::setw(6) << bytes(n*k*sizeof(T));
-    //std::cout << "  repeat: "    << std::setw(4) << repeat;
-    //std::cout << "  tries: "    << std::setw(4) << tries;
-    std::cout << std::flush;
+    if (CSV) {
+      std::cout << name<T>() << ',' << static_cast<double>(n*k*sizeof(T));
+    } else {
+      std::cout << "  size: "     << std::setw(6) << bytes(n*k*sizeof(T));
+      if (verbose) {
+        std::cout << "  repeat: " << std::setw(4) << repeat;
+        std::cout << "  tries: "  << std::setw(4) << tries;
+      }
+      std::cout << std::flush;
+    }
 
     OMP(parallel firstprivate(n, repeat, tries, k)) {
       T *buffer = allocate<T>(n + 0x3000 / sizeof(T), 0x1000);
@@ -209,32 +226,56 @@ void test(const std::vector<long long>& sizes, double cost) {
 
       double  read_b = k*max_bandwidth<T>([A1, n, repeat, tries](const bandwidth* b){ return b->read(A1, round_down(n, b->kern), repeat, tries); });
       OMP(master) {
-        std::cout << "  \tread: "  << std::setw(6) << bytes( read_b) << "/s" << std::flush;
+        if (CSV) {
+          std::cout << ',' << static_cast<double>(read_b);
+        } else {
+          std::cout << "  \tread: "  << std::setw(6) << bytes(read_b) << "/s" << std::flush;
+        }
       }
 
       double write_b = k*max_bandwidth<T>([A1, n, repeat, tries](const bandwidth* b){ return b->write(A1, round_down(n, b->kern), repeat, tries); });
       OMP(master) {
-        std::cout << "  \twrite: " << std::setw(6) << bytes(write_b) << "/s" << std::flush;
+        if (CSV) {
+          std::cout << ',' << static_cast<double>(write_b);
+        } else {
+          std::cout << "  \twrite: " << std::setw(6) << bytes(write_b) << "/s" << std::flush;
+        }
       }
 
       double  copy_b = k*max_bandwidth<T>([A2, B2, n, repeat, tries](const bandwidth* b){ return b->copy(A2, B2, round_down(n/2, b->kern), repeat, tries); });
       OMP(master) {
-        std::cout << "  \tcopy: "  << std::setw(6) << bytes( copy_b) << "/s" << std::flush;
+        if (CSV) {
+          std::cout << ',' << static_cast<double>(copy_b);
+        } else {
+          std::cout << "  \tcopy: "  << std::setw(6) << bytes( copy_b) << "/s" << std::flush;
+        }
       }
 
       double scale_b = k*max_bandwidth<T>([A2, B2, n, repeat, tries](const bandwidth* b){ return b->scale(A2, B2, round_down(n/2, b->kern), repeat, tries); });
       OMP(master) {
-        std::cout << "  \tscale: " << std::setw(6) << bytes(scale_b) << "/s" << std::flush;
+        if (CSV) {
+          std::cout << ',' << static_cast<double>(scale_b);
+        } else {
+          std::cout << "  \tscale: " << std::setw(6) << bytes(scale_b) << "/s" << std::flush;
+        }
       }
 
       double   add_b = k*max_bandwidth<T>([A3, B3, C3, n, repeat, tries](const bandwidth* b){ return b->add(A3, B3, C3, round_down(n/3, b->kern), repeat, tries); });
       OMP(master) {
-        std::cout << "  \tadd: "   << std::setw(6) << bytes(  add_b) << "/s" << std::flush;
+        if (CSV) {
+          std::cout << ',' << static_cast<double>(add_b);
+        } else {
+          std::cout << "  \tadd: "   << std::setw(6) << bytes(add_b) << "/s" << std::flush;
+        }
       }
 
       double triad_b = k*max_bandwidth<T>([A3, B3, C3, n, repeat, tries](const bandwidth* b){ return b->triad(A3, B3, C3, round_down(n/3, b->kern), repeat, tries); });
       OMP(master) {
-        std::cout << "  \ttriad: " << std::setw(6) << bytes(triad_b) << "/s" << std::flush;
+        if (CSV) {
+          std::cout << ',' << static_cast<double>(triad_b);
+        } else {
+          std::cout << "  \ttriad: " << std::setw(6) << bytes(triad_b) << "/s" << std::flush;
+        }
       }
 
       deallocate(buffer);
@@ -257,6 +298,7 @@ void help(std::ostream& out) {
   out << "  options:\n";
   out << "    -h, --help            Prints this message\n";
   out << "    -v, --verbose         Verbose output\n";
+  out << "    -C, --csv             CSV output\n";
   out << "    -m, --min size        sets the minimum buffer size to \"size\" (default: NPROC * " << bytes(default_min) << ")\n";
   out << "    -M, --max size        sets the maximum buffer size to \"size\" (default: " << bytes(default_max) << ")\n";
   out << "    -n, --n   n           sets the number of buffer size being tested to \"n\" (default: 1 + 2 log2(max / min) )\n";
@@ -271,12 +313,12 @@ void help(std::ostream& out) {
 int main(int argc, char *argv[]) {
   program_name = argv[0];
   const char* arg;
-  bool verbose = false;
   int opt, longindex;
   struct optparse options;
   struct optparse_long longopts[] = {
     {"help",          'h', OPTPARSE_NONE},
     {"verbose",       'v', OPTPARSE_NONE},
+    {"csv",           'C', OPTPARSE_NONE},
     {"min",           'm', OPTPARSE_REQUIRED},
     {"max",           'M', OPTPARSE_REQUIRED},
     {"n",             'n', OPTPARSE_REQUIRED},
@@ -310,6 +352,9 @@ int main(int argc, char *argv[]) {
           break;
         case 'v': // verbose
           verbose = true;
+          break;
+        case 'C': // CSV output
+          CSV = true;
           break;
         case 'm': // min
           min_size = bytes(options.optarg);
