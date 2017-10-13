@@ -253,7 +253,7 @@ class simd<double, 4> {
 #ifdef __FMA__
       return _mm256_fmadd_pd(a, b, c);
 #else
-      return _mm256_add_pd(_mm256_mul_ps(a, b), c);
+      return _mm256_add_pd(_mm256_mul_pd(a, b), c);
 #endif
     }
     friend inline __attribute((always_inline)) void vkeep(simd& a) noexcept {
