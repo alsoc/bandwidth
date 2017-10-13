@@ -35,6 +35,10 @@ class simd {
       vstore(p, v.low);
       vstore(p + N/2, v.high);
     }
+    friend void vstorent(T* p, simd v) noexcept {
+      vstorent(p, v.low);
+      vstorent(p + N/2, v.high);
+    }
 
     friend simd vadd(simd a, simd b) noexcept {
       return {vadd(a.low, b.low), vadd(a.high, b.high)};
@@ -68,6 +72,9 @@ class simd<T, 1> {
     ~simd() = default;
 
     friend void vstore(T* p, simd v) noexcept {
+      *p = v.inner;
+    }
+    friend void vstorent(T* p, simd v) noexcept {
       *p = v.inner;
     }
 
@@ -105,6 +112,9 @@ class simd<float, 2> {
     friend void vstore(float* p, simd v) noexcept {
       _mm_storel_pi((__m64*)p, v);
     }
+    friend void vstorent(float* p, simd v) noexcept {
+      _mm_storel_pi((__m64*)p, v);
+    }
 
     friend simd vadd(simd a, simd b) noexcept {
       return _mm_add_ps(a, b);
@@ -138,6 +148,9 @@ class simd<float, 4> {
     friend void vstore(float* p, simd v) noexcept {
       _mm_store_ps(p, v);
     }
+    friend void vstorent(float* p, simd v) noexcept {
+      _mm_stream_ps(p, v);
+    }
 
     friend simd vadd(simd a, simd b) noexcept {
       return _mm_add_ps(a, b);
@@ -170,6 +183,9 @@ class simd<double, 2> {
 
     friend void vstore(double* p, simd v) noexcept {
       _mm_store_pd(p, v);
+    }
+    friend void vstorent(double* p, simd v) noexcept {
+      _mm_stream_pd(p, v);
     }
 
     friend simd vadd(simd a, simd b) noexcept {
@@ -206,6 +222,9 @@ class simd<float, 8> {
     friend void vstore(float* p, simd v) noexcept {
       _mm256_store_ps(p, v);
     }
+    friend void vstorent(float* p, simd v) noexcept {
+      _mm256_stream_ps(p, v);
+    }
     friend simd vadd(simd a, simd b) noexcept {
       return _mm256_add_ps(a, b);
     }
@@ -241,6 +260,9 @@ class simd<double, 4> {
 
     friend void vstore(double* p, simd v) noexcept {
       _mm256_store_pd(p, v);
+    }
+    friend void vstorent(double* p, simd v) noexcept {
+      _mm256_stream_pd(p, v);
     }
 
     friend simd vadd(simd a, simd b) noexcept {
@@ -281,6 +303,9 @@ class simd<float, 16> {
     friend void vstore(float* p, simd v) noexcept {
       _mm512_store_ps(p, v);
     }
+    friend void vstorent(float* p, simd v) noexcept {
+      _mm512_stream_ps(p, v);
+    }
     friend simd vadd(simd a, simd b) noexcept {
       return _mm512_add_ps(a, b);
     }
@@ -312,6 +337,9 @@ class simd<double, 8> {
 
     friend void vstore(double* p, simd v) noexcept {
       _mm512_store_pd(p, v);
+    }
+    friend void vstorent(double* p, simd v) noexcept {
+      _mm512_stream_pd(p, v);
     }
 
     friend simd vadd(simd a, simd b) noexcept {
@@ -348,6 +376,9 @@ class simd<float, 2> {
     friend void vstore(float* p, simd v) noexcept {
       vst1_f32(p, v);
     }
+    friend void vstorent(float* p, simd v) noexcept {
+      vst1_f32(p, v);
+    }
 
     friend simd vadd(simd a, simd b) noexcept {
       return vadd_f32(a, b);
@@ -379,6 +410,9 @@ class simd<float, 4> {
     ~simd() = default;
 
     friend void vstore(float* p, simd v) noexcept {
+      vst1q_f32(p, v);
+    }
+    friend void vstorent(float* p, simd v) noexcept {
       vst1q_f32(p, v);
     }
 
@@ -413,6 +447,9 @@ class simd<double, 2> {
     ~simd() = default;
 
     friend void vstore(double* p, simd v) noexcept {
+      vst1q_f64(p, v);
+    }
+    friend void vstorent(double* p, simd v) noexcept {
       vst1q_f64(p, v);
     }
 

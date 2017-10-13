@@ -130,14 +130,13 @@ template <class T, class F>
 double max_bandwidth(F&& f) {
   double max_bandwidth = -1./0.;
   const bandwidth* b = bandwidth_benches;
-  while (b->kern != 0) {
-    if (cannot_be_fast<T>(b->kern)) {
-      ++b;
-      continue;
-    }
+  for (const bandwidth* b = bandwidth_benches; b->kern != 0; ++b) {
+    if (cannot_be_fast<T>(b->kern)) continue;
+#if !defined(__SSE2__)
+    if (b->nontemporal) continue;
+#endif
     double cur_bandwidth = f(b);
     max_bandwidth = std::max(max_bandwidth, cur_bandwidth);
-    ++b;
   }
   return max_bandwidth;
 }
@@ -176,11 +175,8 @@ void test(const std::vector<long long>& sizes, double cost) {
     int tries = 1;
 
     double cost_ratio = cost / static_cast<double>(n);
-#ifdef _OPENMP
     repeat = std::sqrt(cost_ratio) / 2.;
-#else
-    repeat = std::sqrt(cost_ratio) /  5.;
-#endif
+
     double l = std::log2(cost_ratio);
     if (l < 1.) l = 1.;
     if (repeat < 1)          repeat = 1;
@@ -191,8 +187,6 @@ void test(const std::vector<long long>& sizes, double cost) {
     //if (tries  > max_tries)  tries  = max_tries;
     if (repeat < min_repeat) repeat = min_repeat;
     //if (repeat > max_repeat) repeat = max_repeat;
-
-    //tries = 50;
 
     std::cout << "  size: "    << std::setw(6) << bytes(n*k*sizeof(T));
     //std::cout << "  repeat: "    << std::setw(4) << repeat;
@@ -250,7 +244,7 @@ void test(const std::vector<long long>& sizes, double cost) {
   }
 }
 
-double default_cost = 2e6;
+double default_cost = 1e6;
 long long default_min = bytes("4 KiB");
 long long default_max = bytes("512 MiB");
 

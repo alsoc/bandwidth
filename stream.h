@@ -5,7 +5,7 @@
 #define restrict __restrict__
 #endif
 
-template <int N = 1>
+template <int N = 1, bool nt = false>
 struct stream {
   constexpr static int kern = N;
 
@@ -26,8 +26,14 @@ struct stream {
     long long i;
     vec a(0);
 
-    for (i = 0; i < n; i += N) {
-      vstore(&A[i], a);
+    if (nt) {
+      for (i = 0; i < n; i += N) {
+        vstorent(&A[i], a);
+      }
+    } else {
+      for (i = 0; i < n; i += N) {
+        vstore(&A[i], a);
+      }
     }
   }
 
@@ -36,10 +42,18 @@ struct stream {
     using vec = simd<T, N>;
     long long i;
 
-    for (i = 0; i < n; i += N) {
-      vec a = vload(&A[i]);
-      vec b = a;
-      vstore(&B[i], b);
+    if (nt) {
+      for (i = 0; i < n; i += N) {
+        vec a = vload(&A[i]);
+        vec b = a;
+        vstorent(&B[i], b);
+      }
+    } else {
+      for (i = 0; i < n; i += N) {
+        vec a = vload(&A[i]);
+        vec b = a;
+        vstore(&B[i], b);
+      }
     }
   }
 
@@ -49,10 +63,18 @@ struct stream {
     vec vscalar(scalar);
     long long i;
 
-    for (i = 0; i < n; i += N) {
-      vec a = vload(&A[i]);
-      vec b = vmul(vscalar, a);
-      vstore(&B[i], b);
+    if (nt) {
+      for (i = 0; i < n; i += N) {
+        vec a = vload(&A[i]);
+        vec b = vmul(vscalar, a);
+        vstorent(&B[i], b);
+      }
+    } else {
+      for (i = 0; i < n; i += N) {
+        vec a = vload(&A[i]);
+        vec b = vmul(vscalar, a);
+        vstore(&B[i], b);
+      }
     }
   }
 
@@ -61,11 +83,20 @@ struct stream {
     using vec = simd<T, N>;
     long long i;
 
-    for (i = 0; i < n; i += N) {
-      vec a = vload(&A[i]);
-      vec b = vload(&B[i]);
-      vec c = vadd(a, b);
-      vstore(&C[i], c);
+    if (nt) {
+      for (i = 0; i < n; i += N) {
+        vec a = vload(&A[i]);
+        vec b = vload(&B[i]);
+        vec c = vadd(a, b);
+        vstorent(&C[i], c);
+      }
+    } else {
+      for (i = 0; i < n; i += N) {
+        vec a = vload(&A[i]);
+        vec b = vload(&B[i]);
+        vec c = vadd(a, b);
+        vstore(&C[i], c);
+      }
     }
   }
 
@@ -75,18 +106,27 @@ struct stream {
     vec vscalar(scalar);
     long long i;
 
-    for (i = 0; i < n; i += N) {
-      vec a = vload(&A[i]);
-      vec b = vload(&B[i]);
-      vec c = vfma(vscalar, a, b);
-      vstore(&C[i], c);
+    if (nt) {
+      for (i = 0; i < n; i += N) {
+        vec a = vload(&A[i]);
+        vec b = vload(&B[i]);
+        vec c = vfma(vscalar, a, b);
+        vstorent(&C[i], c);
+      }
+    } else {
+      for (i = 0; i < n; i += N) {
+        vec a = vload(&A[i]);
+        vec b = vload(&B[i]);
+        vec c = vfma(vscalar, a, b);
+        vstore(&C[i], c);
+      }
     }
   }
 };
 
 
 template <>
-struct stream<1> {
+struct stream<1, false> {
   constexpr static int kern = 1;
 
   template <class T>

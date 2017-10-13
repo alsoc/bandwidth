@@ -9,6 +9,7 @@
 struct bandwidth {
   // kernel size
   int kern = 0;
+  bool nontemporal = false;
   // versions
   double (*read_f )(const float *restrict A,                                             long long n, int repeat, int tries) noexcept = nullptr;
   double (*write_f)(      float *restrict A,                                             long long n, int repeat, int tries) noexcept = nullptr;
