@@ -16,6 +16,17 @@
 #include "omp.h"
 #endif
 
+/* GLOBALS */
+bool bytes_power_1024 = false;
+bool verbose = false;
+bool CSV = false;
+bool first = true;
+#if !defined(__SSE2__)
+bool temporal = true;
+#else
+bool temporal = false;
+#endif
+
 template <class T>
 constexpr const char* name() noexcept {
   return __PRETTY_FUNCTION__;
@@ -23,7 +34,6 @@ constexpr const char* name() noexcept {
 template <> constexpr const char* name<float >() noexcept { return "float" ; }
 template <> constexpr const char* name<double>() noexcept { return "double"; }
 
-bool bytes_power_1024 = false;
 struct bytes {
   double n = 0;
   bytes() = default;
@@ -132,9 +142,7 @@ double max_bandwidth(F&& f) {
   const bandwidth* b = bandwidth_benches;
   for (const bandwidth* b = bandwidth_benches; b->kern != 0; ++b) {
     if (cannot_be_fast<T>(b->kern)) continue;
-#if !defined(__SSE2__)
-    if (b->nontemporal) continue;
-#endif
+    if (temporal && b->nontemporal) continue;
     double cur_bandwidth = f(b);
     max_bandwidth = std::max(max_bandwidth, cur_bandwidth);
   }
@@ -159,10 +167,6 @@ int get_num_threads() {
 #endif
   return k;
 }
-
-bool verbose = false;
-bool CSV = false;
-bool first = true;
 
 template <class T>
 void test(const std::vector<long long>& sizes, double cost) {
@@ -285,9 +289,11 @@ void test(const std::vector<long long>& sizes, double cost) {
   }
 }
 
+/* CLI DEFAULTS */
 double default_cost = 1e6;
 long long default_min = bytes("4 KiB");
 long long default_max = bytes("512 MiB");
+double default_density = 2;
 
 const char* program_name = "bandwidth";
 void help(std::ostream& out) {
@@ -301,11 +307,15 @@ void help(std::ostream& out) {
   out << "    -C, --csv             CSV output\n";
   out << "    -m, --min size        sets the minimum buffer size to \"size\" (default: NPROC * " << bytes(default_min) << ")\n";
   out << "    -M, --max size        sets the maximum buffer size to \"size\" (default: " << bytes(default_max) << ")\n";
-  out << "    -n, --n   n           sets the number of buffer size being tested to \"n\" (default: 1 + 2 log2(max / min) )\n";
+  out << "    -d, --density d       sets the density of sizes to tests (default: " << default_density << " per octave)\n";
+  out << "    -n, --n   n           sets the number of buffer size being tested to \"n\" (default: 1 + density * log2(max / min) )\n";
   out << "    -c, --cost cost       sets the goal cost of the tests: higher means more retries per test (default: " << default_cost << ")\n";
   out << "    -s, --size list       sets the buffer size being tested to a specific list "
                                     "(default: n sizes logarithmically spaced from min to max)\n";
   out << "    -i, --binary-prefix   uses binary prefixes (eg: KiB, MiB) for the output\n";
+  out << "    -T, --temporal        does not use any non-temporal store instructions";
+  if (temporal) out << " (always ON: non-temporal stores not supported on this architecture)";
+  out << "\n";
   out << std::flush;
 	return;
 }
@@ -321,11 +331,13 @@ int main(int argc, char *argv[]) {
     {"csv",           'C', OPTPARSE_NONE},
     {"min",           'm', OPTPARSE_REQUIRED},
     {"max",           'M', OPTPARSE_REQUIRED},
+    {"density",       'd', OPTPARSE_REQUIRED},
     {"n",             'n', OPTPARSE_REQUIRED},
     {"cost",          'c', OPTPARSE_REQUIRED},
     {"size",          's', OPTPARSE_REQUIRED},
     {"type",          't', OPTPARSE_REQUIRED},
     {"binary-prefix", 'i', OPTPARSE_NONE},
+    {"temporal",      'T', OPTPARSE_NONE},
     {0, 0, OPTPARSE_NONE}
   };
   optparse_init(&options, argv);
@@ -341,6 +353,7 @@ int main(int argc, char *argv[]) {
 
   long long n = 0;
   double cost = default_cost;
+  double density = default_density;
   std::vector<long long> sizes;
 
   while (options.optind < argc) {
@@ -361,6 +374,9 @@ int main(int argc, char *argv[]) {
           break;
         case 'M': // max
           max_size = bytes(options.optarg);
+          break;
+        case 'd': // number of sizes per octave
+          density = std::stod(options.optarg);
           break;
         case 'n': // number of sizes
           n = std::stod(options.optarg);
@@ -386,6 +402,9 @@ int main(int argc, char *argv[]) {
           break;
         case 'i': // binary-prefix
           bytes_power_1024 = true;
+          break;
+        case 'T': // binary-prefix
+          temporal = true;
           break;
         case '?':
           std::cerr << "error: unrecognized option\n";
@@ -422,7 +441,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (n < 1) {
-    n = 1 + 2 * std::ceil(std::log2(static_cast<double>(max_size) / static_cast<double>(min_size)));
+    n = 1 + std::ceil(density * std::log2(static_cast<double>(max_size) / static_cast<double>(min_size)));
     if (n < 1) n = 1;
   }
 
