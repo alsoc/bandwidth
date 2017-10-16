@@ -15,7 +15,6 @@ namespace {
       dmin = -1;
       dmax = 0;
     }
-    counter_t t0, t1;
     for (int i = 0; i < tries; i++) {
       Timer::reset();
       OMP(barrier);

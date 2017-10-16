@@ -139,7 +139,6 @@ bool cannot_be_fast(int N) {
 template <class T, class F>
 double max_bandwidth(F&& f) {
   double max_bandwidth = -1./0.;
-  const bandwidth* b = bandwidth_benches;
   for (const bandwidth* b = bandwidth_benches; b->kern != 0; ++b) {
     if (cannot_be_fast<T>(b->kern)) continue;
     if (temporal && b->nontemporal) continue;
@@ -220,7 +219,7 @@ void test(const std::vector<long long>& sizes, double cost) {
         std::cerr << "Error: Allocation failed. Aborting." << std::endl;
         abort();
       }
-      for (long long i = 0; i < n + 0x3000 / sizeof(T); ++i) {
+      for (long long i = 0; i < (long long)(n + 0x3000 / sizeof(T)); ++i) {
         buffer[i] = 0;
       }
       T *A1 = buffer, *A2 = buffer, *A3 = buffer;
@@ -322,7 +321,6 @@ void help(std::ostream& out) {
 
 int main(int argc, char *argv[]) {
   program_name = argv[0];
-  const char* arg;
   int opt, longindex;
   struct optparse options;
   struct optparse_long longopts[] = {
