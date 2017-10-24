@@ -7,6 +7,9 @@
 #ifdef __ARM_NEON
 #include <arm_neon.h>
 #endif
+#ifdef __ALTIVEC__
+#include <altivec.h>
+#endif
 
 template <class T>
 struct load_addr {
@@ -426,7 +429,7 @@ class simd<float, 4> {
       return vmlaq_f32(c, a, b);
     }
     friend inline __attribute((always_inline)) void vkeep(simd& a) noexcept {
-      asm volatile ("" : "+x"(a.inner));
+      asm volatile ("" : "+w"(a.inner));
     }
 };
 #ifdef __aarch64__
@@ -463,7 +466,139 @@ class simd<double, 2> {
       return vmlaq_f64(c, a, b);
     }
     friend inline __attribute((always_inline)) void vkeep(simd& a) noexcept {
-      asm volatile ("" : "+x"(a.inner));
+      asm volatile ("" : "+w"(a.inner));
+    }
+};
+#endif
+#endif
+#ifdef __ALTIVEC__
+//template <>
+//class simd<float, 2> {
+//  private:
+//    float32x2_t inner = vdup_n_f32(0.f);
+//    simd(float32x2_t v) noexcept : inner(v) {}
+//    operator float32x2_t() const noexcept {
+//      return inner;
+//    }
+//  public:
+//    explicit simd(float val) noexcept : inner(vdup_n_f32(val)) {}
+//    simd(load_addr<float> la) noexcept : inner(vld1_f32(la.p)) {}
+//    simd() = default;
+//    simd(const simd&) = default;
+//    simd& operator=(const simd&) = default;
+//    ~simd() = default;
+//
+//    friend void vstore(float* p, simd v) noexcept {
+//      vst1_f32(p, v);
+//    }
+//    friend void vstorent(float* p, simd v) noexcept {
+//      vst1_f32(p, v);
+//    }
+//
+//    friend simd vadd(simd a, simd b) noexcept {
+//      return vadd_f32(a, b);
+//    }
+//    friend simd vmul(simd a, simd b) noexcept {
+//      return vmul_f32(a, b);
+//    }
+//    friend simd vfma(simd a, simd b, simd c) noexcept {
+//      return vmla_f32(c, a, b);
+//    }
+//    friend inline __attribute((always_inline)) void vkeep(simd& a) noexcept {
+//      asm volatile ("" : "+x"(a.inner));
+//    }
+//};
+template <>
+class simd<float, 4> {
+  private:
+    vector float inner = (vector float) vec_splat_u32(0);
+    simd(vector float v) noexcept : inner(v) {}
+    operator vector float() const noexcept {
+      return inner;
+    }
+  public:
+    explicit simd(float val) noexcept : inner{val, val, val, val} {}
+#ifndef __VSX__
+    simd(load_addr<float> la) noexcept : inner(vec_ld(0, la.p)) {}
+#else
+    simd(load_addr<float> la) noexcept : inner(vec_vsx_ld(0, la.p)) {}
+#endif
+    simd() = default;
+    simd(const simd&) = default;
+    simd& operator=(const simd&) = default;
+    ~simd() = default;
+
+    friend void vstore(float* p, simd v) noexcept {
+#ifndef __VSX__
+      vec_st(v.inner, 0, p);
+#else
+      vec_vsx_st(v.inner, 0, p);
+#endif
+    }
+    friend void vstorent(float* p, simd v) noexcept {
+#ifndef __VSX__
+      vec_st(v.inner, 0, p);
+#else
+      vec_vsx_st(v.inner, 0, p);
+#endif
+    }
+
+    friend simd vadd(simd a, simd b) noexcept {
+      return vec_add(a.inner, b.inner);
+    }
+    friend simd vmul(simd a, simd b) noexcept {
+#ifndef __VSX__
+      return vec_madd(a.inner, b.inner, (vector float) vec_splat_u32(0));
+#else
+      return vec_mul(a.inner, b.inner);
+#endif
+    }
+    friend simd vfma(simd a, simd b, simd c) noexcept {
+      return vec_madd(a.inner, b.inner, c.inner);
+    }
+    friend inline __attribute((always_inline)) void vkeep(simd& a) noexcept {
+#ifndef __VSX__
+      asm volatile ("" : "+v"(a.inner));
+#else
+      asm volatile ("" : "+wa"(a.inner));
+#endif
+    }
+};
+#ifdef __VSX__
+template <>
+class simd<double, 2> {
+  private:
+    vector double inner = (vector double) vec_splat_u32(0);
+    simd(vector double v) noexcept : inner(v) {}
+    operator vector double() const noexcept {
+      return inner;
+    }
+  public:
+    explicit simd(double val) noexcept : inner{val, val} {}
+    simd(load_addr<double> la) noexcept : inner(vec_vsx_ld(0, la.p)) {}
+    simd() = default;
+    simd(const simd&) = default;
+    simd& operator=(const simd&) = default;
+    ~simd() = default;
+
+    friend void vstore(double* p, simd v) noexcept {
+      vec_vsx_st(v.inner, 0, p);
+    }
+    friend void vstorent(double* p, simd v) noexcept {
+      vec_vsx_st(v.inner, 0, p);
+    }
+
+    friend simd vadd(simd a, simd b) noexcept {
+      return vec_add(a.inner, b.inner);
+    }
+    friend simd vmul(simd a, simd b) noexcept {
+      return vec_mul(a.inner, b.inner);
+    }
+    friend simd vfma(simd a, simd b, simd c) noexcept {
+      return vec_madd(a.inner, b.inner, c.inner);
+    }
+    friend inline __attribute((always_inline)) void vkeep(simd& a) noexcept {
+      asm volatile ("" : "+wa"(a.inner));
     }
 };
 #endif
