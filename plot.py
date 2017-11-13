@@ -1,7 +1,7 @@
 #! /usr//bin/env python
 
-import sys
 import argparse
+import sys
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
@@ -70,11 +70,6 @@ class CSV(object):
 
 
 filename = 'bw.csv'
-if len(sys.argv) == 2:
-  filename = sys.argv[1]
-if len(sys.argv) > 2:
-  sys.stderr.write("One argument required\n")
-  exit(1)
 
 inf = float("inf")
 xmin =  inf
@@ -85,19 +80,18 @@ ymax = -inf
 ylog = True
 
 parser = argparse.ArgumentParser(description='Plots the bandwidth of a machine from CSV file')
-parser.add_argument('--L1', type=float, help='L1 cache size')
-parser.add_argument('--L2', type=float, help='L2 cache size')
-parser.add_argument('--L3', type=float, help='L3 cache size')
-parser.add_argument('--L4', type=float, help='L4 cache size')
-parser.add_argument('-l', '--log', help='logscale for Y axis', action='store_true')
-parser.add_argument('-m', '--machine', type=str, help='Machine name')
-parser.add_argument('-t', '--title', type=str, help='Plot title')
-parser.add_argument('filename', type=str, help='CSV file', default='/dev/stdin', nargs='*')
+parser.add_argument('filename', type=str, help='CSV file', action='store', default='/dev/stdin')
+parser.add_argument('--L1', type=float, default=0., help='L1 cache size')
+parser.add_argument('--L2', type=float, default=0., help='L2 cache size')
+parser.add_argument('--L3', type=float, default=0., help='L3 cache size')
+parser.add_argument('--L4', type=float, default=0., help='L4 cache size')
+group = parser.add_mutually_exclusive_group()
+group.add_argument('-l', '--linear', help='linear scale for Y axis', action='store_true')
+group.add_argument('-L', '--log', help='log scale for Y axis', action='store_true')
+parser.add_argument('-m', '--machine', type=str, default='', help='Machine name')
+parser.add_argument('-t', '--title', type=str, default='', help='Plot title')
 
-#print(repr(parser))
 args = parser.parse_args()
-#print(repr(args))
-#exit(0)
 
 raw_caches = [0., args.L1, args.L2, args.L3, args.L4]
 caches = [0.]
@@ -106,7 +100,7 @@ last_cache = 0
 
 for i in range(1, len(raw_caches)):
   c = raw_caches[i]
-  if c is None:
+  if not c:
     continue
   if last_cache != i-1:
     sys.stderr.write('L{} cannot be set if L{} is not set\n'.format(i, i-1))
@@ -117,7 +111,7 @@ for i in range(1, len(raw_caches)):
   last_cache = i
   caches.append(c)
 
-ylog = args.log
+ylog = not args.linear
 machine_name = args.machine
 title = args.title or "{} bandwidth".format(machine_name)
 
