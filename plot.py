@@ -80,7 +80,7 @@ ymax = -inf
 ylog = True
 
 parser = argparse.ArgumentParser(description='Plots the bandwidth of a machine from CSV file')
-parser.add_argument('filename', type=str, help='CSV file', action='store', default='/dev/stdin')
+parser.add_argument('filename', type=str, help='CSV file', action='store', nargs='?', default='/dev/stdin')
 parser.add_argument('--L1', type=float, default=0., help='L1 cache size')
 parser.add_argument('--L2', type=float, default=0., help='L2 cache size')
 parser.add_argument('--L3', type=float, default=0., help='L3 cache size')
@@ -119,6 +119,7 @@ series = dict()
 
 
 csv = CSV(args.filename)
+currenttype = None
 ignore = {'type'}
 Xname = ''
 X = []
@@ -127,6 +128,10 @@ with csv:
     series[n] = []
   Xname = next((h for h in csv.header if h not in ignore))
   for row in csv:
+    if currenttype is None:
+      currenttype = row["type"]
+    elif currenttype != row["type"]:
+      break
     x = row[Xname]
     xmin = min(xmin, x)
     xmax = max(xmax, x)
@@ -171,6 +176,7 @@ def bytes_fmt(v, *args):
 formatter = ticker.FuncFormatter
 
 ax.xaxis.set_major_formatter(ticker.FuncFormatter(bytes_fmt))
+ax.xaxis.set_minor_formatter(ticker.NullFormatter())
 ax.yaxis.set_minor_formatter(ticker.FuncFormatter(lambda v, pos: bytes_fmt(v, pos) + "/s"))
 ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda v, pos: bytes_fmt(v, pos) + "/s"))
 
