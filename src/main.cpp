@@ -79,7 +79,6 @@ struct bytes {
       case 'k':
       case 'K':
         n *= power;
-        [[fallthrough]];
     }
   }
   friend std::ostream& operator<<(std::ostream& out, bytes B) {
