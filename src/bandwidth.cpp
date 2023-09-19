@@ -2,7 +2,10 @@
 #include "bandwidth.h"
 #include "stream.h"
 #include "omp-helper.h"
+
+#ifdef _OPENMP
 #include <omp.h>
+#endif
 
 namespace {
   template <class F>
