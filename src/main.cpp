@@ -170,7 +170,7 @@ template <class T>
 void test(const std::vector<long long>& sizes, double cost) {
   if (CSV) {
     if (first) {
-      std::cout << "type,size,read,write,copy,scale,add,triad" << std::endl;
+      std::cout << "type,size,read,write,copy,incr,scale,add,triad" << std::endl;
       first = false;
     }
   } else {
@@ -250,6 +250,15 @@ void test(const std::vector<long long>& sizes, double cost) {
           std::cout << ',' << static_cast<double>(copy_b);
         } else {
           std::cout << "  \tcopy: "  << std::setw(6) << bytes( copy_b) << "/s" << std::flush;
+        }
+      }
+
+      double incr_b = k*max_bandwidth<T>([A2, n, repeat, tries](const bandwidth* b){ return b->incr(A2, round_down(n/2, b->kern), repeat, tries); });
+      OMP(master) {
+        if (CSV) {
+          std::cout << ',' << static_cast<double>(incr_b);
+        } else {
+          std::cout << "  \tincr: "  << std::setw(6) << bytes(incr_b) << "/s" << std::flush;
         }
       }
 

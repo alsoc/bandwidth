@@ -58,6 +58,27 @@ struct stream {
   }
 
   template <class T>
+  static void incr(T*restrict A, long long n) {
+    using vec = simd<T, N>;
+    vec vone(static_cast<T>(1));
+    long long i;
+
+    if (nt) {
+      for (i = 0; i < n; i += N) {
+        vec a1 = vload(&A[i]);
+        vec a2 = vadd(a1, vone);
+        vstorent(&A[i], a2);
+      }
+    } else {
+      for (i = 0; i < n; i += N) {
+        vec a1 = vload(&A[i]);
+        vec a2 = vadd(a1, vone);
+        vstore(&A[i], a2);
+      }
+    }
+  }
+
+  template <class T>
   static void scale(T scalar, const T*restrict A, T*restrict B, long long n) {
     using vec = simd<T, N>;
     vec vscalar(scalar);
@@ -149,6 +170,13 @@ struct stream<1, false> {
   static void copy(const T*restrict A, T*restrict B, long long n) {
     for (long long i = 0; i < n; ++i) {
       B[i] = A[i];
+    }
+  }
+
+  template <class T>
+  static void incr(T*restrict A, long long n) {
+    for (long long i = 0; i < n; ++i) {
+      A[i] = A[i] + 1;
     }
   }
 

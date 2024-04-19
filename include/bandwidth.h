@@ -14,12 +14,14 @@ struct bandwidth {
   double (*read_f )(const float *restrict A,                                             long long n, int repeat, int tries) noexcept = nullptr;
   double (*write_f)(      float *restrict A,                                             long long n, int repeat, int tries) noexcept = nullptr;
   double (*copy_f )(const float *restrict A,       float *restrict B,                    long long n, int repeat, int tries) noexcept = nullptr;
+  double (*incr_f )(      float *restrict A,                                             long long n, int repeat, int tries) noexcept = nullptr;
   double (*scale_f)(const float *restrict A,       float *restrict B,                    long long n, int repeat, int tries) noexcept = nullptr;
   double (*add_f  )(const float *restrict A, const float *restrict B, float *restrict C, long long n, int repeat, int tries) noexcept = nullptr;
   double (*triad_f)(const float *restrict A, const float *restrict B, float *restrict C, long long n, int repeat, int tries) noexcept = nullptr;
   double (*read_d )(const double*restrict A,                                             long long n, int repeat, int tries) noexcept = nullptr;
   double (*write_d)(      double*restrict A,                                             long long n, int repeat, int tries) noexcept = nullptr;
   double (*copy_d )(const double*restrict A,       double*restrict B,                    long long n, int repeat, int tries) noexcept = nullptr;
+  double (*incr_d )(      double*restrict A,                                             long long n, int repeat, int tries) noexcept = nullptr;
   double (*scale_d)(const double*restrict A,       double*restrict B,                    long long n, int repeat, int tries) noexcept = nullptr;
   double (*add_d  )(const double*restrict A, const double*restrict B, double*restrict C, long long n, int repeat, int tries) noexcept = nullptr;
   double (*triad_d)(const double*restrict A, const double*restrict B, double*restrict C, long long n, int repeat, int tries) noexcept = nullptr;
@@ -42,6 +44,12 @@ struct bandwidth {
   }
   double copy(const double*restrict A, double*restrict B, long long n, int repeat, int tries) const noexcept {
     return copy_d(A, B, n, repeat, tries);
+  }
+  double incr(float *restrict A, long long n, int repeat, int tries) const noexcept {
+    return incr_f(A, n, repeat, tries);
+  }
+  double incr(double*restrict A, long long n, int repeat, int tries) const noexcept {
+    return incr_d(A, n, repeat, tries);
   }
   double scale(const float *restrict A, float *restrict B, long long n, int repeat, int tries) const noexcept {
     return scale_f(A, B, n, repeat, tries);

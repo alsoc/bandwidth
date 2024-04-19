@@ -33,6 +33,7 @@ Known limitations:
 - read: `x = A[i]`
 - write: `A[i] = x`
 - copy: `B[i] = A[i]`
+- incr: `A[i] = A[i] + 1`
 - scale: `B[i] = x * A[i]`
 - add: `C[i] = A[i] + B[i]`
 - triad: `C[i] = x * A[i] + B[i]`
@@ -108,4 +109,6 @@ This code has been developed at
 Here are the people involved in the project:
 
 - Florian LEMAITRE: **main contributor**
+- Adrien CASSAGNE: enthusiastic contributor
 - Lionel LACASSAGNE: development supervisor
+

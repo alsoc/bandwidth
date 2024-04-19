@@ -61,6 +61,11 @@ namespace {
       return 2*sizeof(T) * n / bench([A, B, n]{ stream<N, nt>::copy(A, B, n); }, repeat, tries);
     }
     template <class T>
+    static double incr(T*restrict A, long long n, int repeat = 1, int tries = 1) noexcept {
+      if (n == 0) return 0.;
+      return 2*sizeof(T) * n / bench([A, n]{ stream<N, nt>::incr(A, n); }, repeat, tries);
+    }
+    template <class T>
     static double scale(const T*restrict A, T*restrict B, long long n, int repeat = 1, int tries = 1) noexcept {
       if (n == 0) return 0.;
       T scalar = 1.2345;
@@ -88,6 +93,8 @@ namespace {
       b.write_d = &write;
       b.copy_f = &copy;
       b.copy_d = &copy;
+      b.incr_f = &incr;
+      b.incr_d = &incr;
       b.scale_f = &scale;
       b.scale_d = &scale;
       b.add_f = &add;
