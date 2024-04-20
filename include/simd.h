@@ -362,6 +362,7 @@ class simd<float64_t, 8> {
 };
 #endif
 #ifdef __ARM_NEON
+#ifdef F16
 template <>
 class simd<float16_t, 4> {
   private:
@@ -440,6 +441,7 @@ class simd<float16_t, 8> {
       asm volatile ("" : "+w"(a.inner));
     }
 };
+#endif
 template <>
 class simd<float32_t, 2> {
   private:
