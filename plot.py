@@ -92,7 +92,7 @@ group.add_argument('--legend', dest='legend', default=True, help='Print the lege
 group.add_argument('--no-legend', dest='legend', help='Do not print the legend', action='store_false')
 parser.add_argument('-m', '--machine', type=str, default='', help='Machine name')
 parser.add_argument('-t', '--title', type=str, default='', help='Plot title')
-parser.add_argument('-T', '--type', type=str, default='', help='plot only type')
+parser.add_argument('-T', '--type', type=str, default='f32', help='plot only type')
 parser.add_argument('-c', '--columns', type=str, default='', help='columns to plot')
 parser.add_argument('--xscale', type=float, default=1., help='Scaling of the values in X')
 parser.add_argument('--yscale', type=float, default=1., help='Scaling of the values in Y')
@@ -186,7 +186,7 @@ with csv:
     if currenttype is None:
       currenttype = row["type"]
     elif currenttype != row["type"]:
-      break
+      continue
     x = row[Xname] * args.xscale
     xmin = min(xmin, x)
     xmax = max(xmax, x)
@@ -194,8 +194,9 @@ with csv:
     for n in csv.header:
       if n != Xname and n not in ignore and n in row:
         val = row[n] * args.yscale
-        ymin = min(ymin, val)
-        ymax = max(ymax, val)
+        if val != 0:
+          ymin = min(ymin, val)
+          ymax = max(ymax, val)
         series[n].append(val)
 
 ram_bw = None

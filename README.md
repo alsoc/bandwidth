@@ -111,4 +111,3 @@ Here are the people involved in the project:
 - Florian LEMAITRE: **main contributor**
 - Adrien CASSAGNE: enthusiastic contributor
 - Lionel LACASSAGNE: development supervisor
-
