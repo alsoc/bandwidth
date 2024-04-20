@@ -50,7 +50,7 @@ git submodule update --init --recursive
 ```bash
 mkdir build
 cd build
-cmake .. -DCMAKE_CXX_COMPILER=g++ -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=native" -DENABLE_OMP=ON
+cmake .. -DCMAKE_CXX_COMPILER=g++ -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=native" -DENABLE_OMP=ON -DENABLE_F16=ON
 make -j4
 ```
 
