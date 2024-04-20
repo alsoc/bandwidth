@@ -4,6 +4,7 @@ cmake_minimum_required(VERSION 3.11)
 project(bandwidth CXX)
 
 option(ENABLE_OMP "Enable OpenMP for multi-threaded execution." ON)
+option(ENABLE_F16 "Enable 16-bit floats." ON)
 
 if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   message(FATAL_ERROR "'bandwidth' only supports C++ GNU Compiler. You can "
@@ -36,4 +37,8 @@ target_include_directories(bandwidth-exe PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/${in
 if(ENABLE_OMP)
   find_package(OpenMP REQUIRED)
   target_link_libraries(bandwidth-exe PRIVATE OpenMP::OpenMP_CXX)
+endif()
+
+if(ENABLE_F16)
+  target_compile_definitions(bandwidth-exe PRIVATE ENABLE_F16)
 endif()

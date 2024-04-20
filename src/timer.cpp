@@ -18,9 +18,9 @@ static inline Timer::counter_t read_time(void) noexcept {
 #include <unistd.h>
 #include <x86intrin.h>
 
-static inline double get_nominal_frequency() {
+static inline float64_t get_nominal_frequency() {
   Timer::counter_t t0, t1, c0, c1;
-  double dt, dc;
+  float64_t dt, dc;
 
   t0 = read_time();
   c0 = _rdtsc();
@@ -41,7 +41,7 @@ __attribute((noinline)) Timer::counter_t Timer::read(void) noexcept {
   return _rdtsc();
 }
 
-double Timer::frequency = get_nominal_frequency();
+float64_t Timer::frequency = get_nominal_frequency();
 bool Timer::low_overhead = true;
 
 #else
@@ -49,7 +49,7 @@ __attribute((noinline)) Timer::counter_t Timer::read(void) noexcept {
   return read_time();
 }
 
-double Timer::frequency = 1e9;
+float64_t Timer::frequency = 1e9;
 bool Timer::low_overhead = false;
 
 #endif

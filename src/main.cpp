@@ -7,6 +7,7 @@
 #include "allocation.h"
 #include "bandwidth.h"
 #include "omp-helper.h"
+#include "types.h"
 
 #define OPTPARSE_API static
 #define OPTPARSE_IMPLEMENTATION
@@ -31,19 +32,22 @@ template <class T>
 constexpr const char* name() noexcept {
   return __PRETTY_FUNCTION__;
 }
-template <> constexpr const char* name<float >() noexcept { return "float" ; }
-template <> constexpr const char* name<double>() noexcept { return "double"; }
+#ifdef F16
+template <> constexpr const char* name<float16_t>() noexcept { return "f16"; }
+#endif
+template <> constexpr const char* name<float32_t>() noexcept { return "f32"; }
+template <> constexpr const char* name<float64_t>() noexcept { return "f64"; }
 
 struct bytes {
-  double n = 0;
+  float64_t n = 0;
   bytes() = default;
-  bytes(double n) : n(n) {}
+  bytes(float64_t n) : n(n) {}
   bytes(const char* s) {
     char* p = nullptr;
     n = std::strtod(s, &p);
     if (!p) return;
     while (*p == ' ') ++p;
-    double power = 1000.;
+    float64_t power = 1000.;
     if (*p != 0 && p[1] == 'i') power = 1024.;
     switch (*p) {
       case 'f':
@@ -82,10 +86,10 @@ struct bytes {
     }
   }
   friend std::ostream& operator<<(std::ostream& out, bytes B) {
-    double b = B.n;
+    float64_t b = B.n;
     static const char letters[] = "\00fpnum KMGTPE\00";
     const char* letter = letters+6;
-    double power = bytes_power_1024 ? 1024. : 1000.;
+    float64_t power = bytes_power_1024 ? 1024. : 1000.;
     while (letter[0] && letter[-1] && std::abs(b) < 1.) {
       b *= power;
       --letter;
@@ -108,7 +112,7 @@ struct bytes {
     return out;
   }
 
-  operator double() const {
+  operator float64_t() const {
     return n;
   }
 };
@@ -136,12 +140,12 @@ bool cannot_be_fast(int N) {
 }
 
 template <class T, class F>
-double max_bandwidth(F&& f) {
-  double max_bandwidth = -1./0.;
+float64_t max_bandwidth(F&& f) {
+  float64_t max_bandwidth = -1./0.;
   for (const bandwidth* b = bandwidth_benches; b->kern != 0; ++b) {
     if (cannot_be_fast<T>(b->kern)) continue;
     if (temporal && b->nontemporal) continue;
-    double cur_bandwidth = f(b);
+    float64_t cur_bandwidth = f(b);
     max_bandwidth = std::max(max_bandwidth, cur_bandwidth);
   }
   return max_bandwidth;
@@ -167,7 +171,7 @@ int get_num_threads() {
 }
 
 template <class T>
-void test(const std::vector<long long>& sizes, double cost) {
+void test(const std::vector<long long>& sizes, float64_t cost) {
   if (CSV) {
     if (first) {
       std::cout << "type,size,read,write,copy,incr,scale,add,triad" << std::endl;
@@ -187,10 +191,10 @@ void test(const std::vector<long long>& sizes, double cost) {
     int repeat = 1;
     int tries = 1;
 
-    double cost_ratio = cost / static_cast<double>(n);
+    float64_t cost_ratio = cost / static_cast<float64_t>(n);
     repeat = std::sqrt(cost_ratio) / 2.;
 
-    double l = std::log2(cost_ratio);
+    float64_t l = std::log2(cost_ratio);
     if (l < 1.) l = 1.;
     if (repeat < 1)          repeat = 1;
     tries = cost_ratio / repeat;
@@ -202,7 +206,7 @@ void test(const std::vector<long long>& sizes, double cost) {
     //if (repeat > max_repeat) repeat = max_repeat;
 
     if (CSV) {
-      std::cout << name<T>() << ',' << static_cast<double>(n*k*sizeof(T));
+      std::cout << name<T>() << ',' << static_cast<float64_t>(n*k*sizeof(T));
     } else {
       std::cout << "  size: "     << std::setw(6) << bytes(n*k*sizeof(T));
       if (verbose) {
@@ -226,64 +230,64 @@ void test(const std::vector<long long>& sizes, double cost) {
       T *B3 = reinterpret_cast<T*>(round_up(reinterpret_cast<unsigned long long>(A3 + (n+2)/3), 0x1000));
       T *C3 = reinterpret_cast<T*>(round_up(reinterpret_cast<unsigned long long>(B3 + (n+2)/3), 0x1000));
 
-      double  read_b = k*max_bandwidth<T>([A1, n, repeat, tries](const bandwidth* b){ return b->read(A1, round_down(n, b->kern), repeat, tries); });
+      float64_t read_b = k*max_bandwidth<T>([A1, n, repeat, tries](const bandwidth* b){ return b->read(A1, round_down(n, b->kern), repeat, tries); });
       OMP(master) {
         if (CSV) {
-          std::cout << ',' << static_cast<double>(read_b);
+          std::cout << ',' << static_cast<float64_t>(read_b);
         } else {
           std::cout << "  \tread: "  << std::setw(6) << bytes(read_b) << "/s" << std::flush;
         }
       }
 
-      double write_b = k*max_bandwidth<T>([A1, n, repeat, tries](const bandwidth* b){ return b->write(A1, round_down(n, b->kern), repeat, tries); });
+      float64_t write_b = k*max_bandwidth<T>([A1, n, repeat, tries](const bandwidth* b){ return b->write(A1, round_down(n, b->kern), repeat, tries); });
       OMP(master) {
         if (CSV) {
-          std::cout << ',' << static_cast<double>(write_b);
+          std::cout << ',' << static_cast<float64_t>(write_b);
         } else {
           std::cout << "  \twrite: " << std::setw(6) << bytes(write_b) << "/s" << std::flush;
         }
       }
 
-      double  copy_b = k*max_bandwidth<T>([A2, B2, n, repeat, tries](const bandwidth* b){ return b->copy(A2, B2, round_down(n/2, b->kern), repeat, tries); });
+      float64_t copy_b = k*max_bandwidth<T>([A2, B2, n, repeat, tries](const bandwidth* b){ return b->copy(A2, B2, round_down(n/2, b->kern), repeat, tries); });
       OMP(master) {
         if (CSV) {
-          std::cout << ',' << static_cast<double>(copy_b);
+          std::cout << ',' << static_cast<float64_t>(copy_b);
         } else {
           std::cout << "  \tcopy: "  << std::setw(6) << bytes( copy_b) << "/s" << std::flush;
         }
       }
 
-      double incr_b = k*max_bandwidth<T>([A2, n, repeat, tries](const bandwidth* b){ return b->incr(A2, round_down(n/2, b->kern), repeat, tries); });
+      float64_t incr_b = k*max_bandwidth<T>([A2, n, repeat, tries](const bandwidth* b){ return b->incr(A2, round_down(n/2, b->kern), repeat, tries); });
       OMP(master) {
         if (CSV) {
-          std::cout << ',' << static_cast<double>(incr_b);
+          std::cout << ',' << static_cast<float64_t>(incr_b);
         } else {
           std::cout << "  \tincr: "  << std::setw(6) << bytes(incr_b) << "/s" << std::flush;
         }
       }
 
-      double scale_b = k*max_bandwidth<T>([A2, B2, n, repeat, tries](const bandwidth* b){ return b->scale(A2, B2, round_down(n/2, b->kern), repeat, tries); });
+      float64_t scale_b = k*max_bandwidth<T>([A2, B2, n, repeat, tries](const bandwidth* b){ return b->scale(A2, B2, round_down(n/2, b->kern), repeat, tries); });
       OMP(master) {
         if (CSV) {
-          std::cout << ',' << static_cast<double>(scale_b);
+          std::cout << ',' << static_cast<float64_t>(scale_b);
         } else {
           std::cout << "  \tscale: " << std::setw(6) << bytes(scale_b) << "/s" << std::flush;
         }
       }
 
-      double   add_b = k*max_bandwidth<T>([A3, B3, C3, n, repeat, tries](const bandwidth* b){ return b->add(A3, B3, C3, round_down(n/3, b->kern), repeat, tries); });
+      float64_t add_b = k*max_bandwidth<T>([A3, B3, C3, n, repeat, tries](const bandwidth* b){ return b->add(A3, B3, C3, round_down(n/3, b->kern), repeat, tries); });
       OMP(master) {
         if (CSV) {
-          std::cout << ',' << static_cast<double>(add_b);
+          std::cout << ',' << static_cast<float64_t>(add_b);
         } else {
           std::cout << "  \tadd: "   << std::setw(6) << bytes(add_b) << "/s" << std::flush;
         }
       }
 
-      double triad_b = k*max_bandwidth<T>([A3, B3, C3, n, repeat, tries](const bandwidth* b){ return b->triad(A3, B3, C3, round_down(n/3, b->kern), repeat, tries); });
+      float64_t triad_b = k*max_bandwidth<T>([A3, B3, C3, n, repeat, tries](const bandwidth* b){ return b->triad(A3, B3, C3, round_down(n/3, b->kern), repeat, tries); });
       OMP(master) {
         if (CSV) {
-          std::cout << ',' << static_cast<double>(triad_b);
+          std::cout << ',' << static_cast<float64_t>(triad_b);
         } else {
           std::cout << "  \ttriad: " << std::setw(6) << bytes(triad_b) << "/s" << std::flush;
         }
@@ -297,10 +301,10 @@ void test(const std::vector<long long>& sizes, double cost) {
 }
 
 /* CLI DEFAULTS */
-double default_cost = 1e6;
+float64_t default_cost = 1e6;
 long long default_min = bytes("4 KiB");
 long long default_max = bytes("512 MiB");
-double default_density = 2;
+float64_t default_density = 2;
 
 const char* program_name = "bandwidth";
 void help(std::ostream& out) {
@@ -358,8 +362,8 @@ int main(int argc, char *argv[]) {
   }
 
   long long n = 0;
-  double cost = default_cost;
-  double density = default_density;
+  float64_t cost = default_cost;
+  float64_t density = default_density;
   std::vector<long long> sizes;
 
   while (options.optind < argc) {
@@ -447,22 +451,22 @@ int main(int argc, char *argv[]) {
   }
 
   if (n < 1) {
-    n = 1 + std::ceil(density * std::log2(static_cast<double>(max_size) / static_cast<double>(min_size)));
+    n = 1 + std::ceil(density * std::log2(static_cast<float64_t>(max_size) / static_cast<float64_t>(min_size)));
     if (n < 1) n = 1;
   }
 
-  double granularity = k*bytes("1 KiB");
+  float64_t granularity = k*bytes("1 KiB");
 
   if (sizes.size() == 0) {
     sizes.resize(n);
     if (n == 1) {
       sizes.front() = min_size;
     } else {
-      double dmin = std::log2(double(min_size)), dmax = std::log2(double(max_size)), rN = 1. / double(n-1);
+      float64_t dmin = std::log2(float64_t(min_size)), dmax = std::log2(float64_t(max_size)), rN = 1. / float64_t(n-1);
 
       sizes.front() = min_size;
       for (int i = 1; i < n-1; ++i) {
-        double s = std::exp2(dmin + i * (dmax - dmin) * rN);
+        float64_t s = std::exp2(dmin + i * (dmax - dmin) * rN);
         sizes[i] = granularity * std::round(s / granularity);
         sizes[i] = std::min(max_size, sizes[i]);
         sizes[i] = std::max(min_size, sizes[i]);
@@ -489,8 +493,11 @@ int main(int argc, char *argv[]) {
     std::cerr << "min: " << bytes(min_size) << "\tmax: " << bytes(max_size) << "\tcost: " << cost << "\tn: " << n << " (" << sizes.size() << ")\tgranularity: " << bytes(granularity) << std::endl;
   }
 
-  test<float >(sizes, cost);
-  test<double>(sizes, cost);
+#ifdef F16
+  test<float16_t>(sizes, cost);
+#endif
+  test<float32_t>(sizes, cost);
+  test<float64_t>(sizes, cost);
 
 
   return 0;
