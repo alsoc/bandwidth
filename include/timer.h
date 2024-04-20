@@ -1,6 +1,8 @@
 #ifndef TIMER_H
 #define TIMER_H
 
+#include "types.h"
+
 struct Timer {
   public:
     using counter_t = unsigned long long int;
@@ -11,7 +13,7 @@ struct Timer {
   private:
     static diff_t overhead;
   public:
-    static double frequency;
+    static float64_t frequency;
     static bool low_overhead;
     static diff_t diff(counter_t t0, counter_t t1) noexcept {
       diff_t d = (diff_t) t1 - (diff_t) t0 - overhead;

@@ -9,7 +9,7 @@
 
 namespace {
   template <class F>
-  double bench(F&& f, int repeat = 1, int tries = 1) noexcept {
+  float64_t bench(F&& f, int repeat = 1, int tries = 1) noexcept {
     using counter_t = Timer::counter_t;
     using diff_t = Timer::diff_t;
 
@@ -40,44 +40,44 @@ namespace {
         dmax = 0;
       }
     }
-    return static_cast<double>(dmin) / (repeat * Timer::frequency);
+    return static_cast<float64_t>(dmin) / (repeat * Timer::frequency);
   }
 
   template <int N, bool nt>
   struct Bandwidth {
     template <class T>
-    static double read(const T*restrict A, long long n, int repeat = 1, int tries = 1) noexcept {
+    static float64_t read(const T*restrict A, long long n, int repeat = 1, int tries = 1) noexcept {
       if (n == 0) return 0.;
       return sizeof(T) * n / bench([A, n]{ stream<N, nt>::read(A, n); }, repeat, tries);
     }
     template <class T>
-    static double write(T*restrict A, long long n, int repeat = 1, int tries = 1) noexcept {
+    static float64_t write(T*restrict A, long long n, int repeat = 1, int tries = 1) noexcept {
       if (n == 0) return 0.;
       return sizeof(T) * n / bench([A, n]{ stream<N, nt>::write(A, n); }, repeat, tries);
     }
     template <class T>
-    static double copy(const T*restrict A, T*restrict B, long long n, int repeat = 1, int tries = 1) noexcept {
+    static float64_t copy(const T*restrict A, T*restrict B, long long n, int repeat = 1, int tries = 1) noexcept {
       if (n == 0) return 0.;
       return 2*sizeof(T) * n / bench([A, B, n]{ stream<N, nt>::copy(A, B, n); }, repeat, tries);
     }
     template <class T>
-    static double incr(T*restrict A, long long n, int repeat = 1, int tries = 1) noexcept {
+    static float64_t incr(T*restrict A, long long n, int repeat = 1, int tries = 1) noexcept {
       if (n == 0) return 0.;
       return 2*sizeof(T) * n / bench([A, n]{ stream<N, nt>::incr(A, n); }, repeat, tries);
     }
     template <class T>
-    static double scale(const T*restrict A, T*restrict B, long long n, int repeat = 1, int tries = 1) noexcept {
+    static float64_t scale(const T*restrict A, T*restrict B, long long n, int repeat = 1, int tries = 1) noexcept {
       if (n == 0) return 0.;
       T scalar = 1.2345;
       return 2*sizeof(T) * n / bench([A, B, n, scalar]{ stream<N, nt>::scale(scalar, A, B, n); }, repeat, tries);
     }
     template <class T>
-    static double add(const T*restrict A, const T*restrict B, T*restrict C, long long n, int repeat = 1, int tries = 1) noexcept {
+    static float64_t add(const T*restrict A, const T*restrict B, T*restrict C, long long n, int repeat = 1, int tries = 1) noexcept {
       if (n == 0) return 0.;
       return 3*sizeof(T) * n / bench([A, B, C, n]{ stream<N, nt>::add(A, B, C, n); }, repeat, tries);
     }
     template <class T>
-    static double triad(const T*restrict A, const T*restrict B, T*restrict C, long long n, int repeat = 1, int tries = 1) noexcept {
+    static float64_t triad(const T*restrict A, const T*restrict B, T*restrict C, long long n, int repeat = 1, int tries = 1) noexcept {
       if (n == 0) return 0.;
       T scalar = 1.2345;
       return 3*sizeof(T) * n / bench([A, B, C, n, scalar]{ stream<N, nt>::triad(scalar, A, B, C, n); }, repeat, tries);
@@ -87,20 +87,20 @@ namespace {
       bandwidth b;
       b.kern = N;
       b.nontemporal = nt;
-      b.read_f = &read;
-      b.read_d = &read;
-      b.write_f = &write;
-      b.write_d = &write;
-      b.copy_f = &copy;
-      b.copy_d = &copy;
-      b.incr_f = &incr;
-      b.incr_d = &incr;
-      b.scale_f = &scale;
-      b.scale_d = &scale;
-      b.add_f = &add;
-      b.add_d = &add;
-      b.triad_f = &triad;
-      b.triad_d = &triad;
+      b.read_f32 = &read;
+      b.read_f64 = &read;
+      b.write_f32 = &write;
+      b.write_f64 = &write;
+      b.copy_f32 = &copy;
+      b.copy_f64 = &copy;
+      b.incr_f32 = &incr;
+      b.incr_f64 = &incr;
+      b.scale_f32 = &scale;
+      b.scale_f64 = &scale;
+      b.add_f32 = &add;
+      b.add_f64 = &add;
+      b.triad_f32 = &triad;
+      b.triad_f64 = &triad;
       return b;
     }
   };

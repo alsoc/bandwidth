@@ -28,7 +28,7 @@ Known limitations:
 
 ## Features
 
-`bandwidth` measures the memory bandwidth over 6 micro-benchmarks:
+`bandwidth` measures the memory bandwidth over 7 micro-benchmarks:
 
 - read: `x = A[i]`
 - write: `A[i] = x`
