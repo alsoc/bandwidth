@@ -80,10 +80,10 @@ ylog = True
 
 parser = argparse.ArgumentParser(description='Plots the bandwidth of a machine from CSV file')
 parser.add_argument('filename', type=str, help='CSV file', action='store', nargs='?', default='/dev/stdin')
-parser.add_argument('--L1', type=float, default=0., help='L1 cache size')
-parser.add_argument('--L2', type=float, default=0., help='L2 cache size')
-parser.add_argument('--L3', type=float, default=0., help='L3 cache size')
-parser.add_argument('--L4', type=float, default=0., help='L4 cache size')
+parser.add_argument('--L1', type=str, default="0", help='L1 cache size in bytes ("xx KB", "xx MB" & "xx GB" are accepted)')
+parser.add_argument('--L2', type=str, default="0", help='L2 cache size in bytes ("xx KB", "xx MB" & "xx GB" are accepted)')
+parser.add_argument('--L3', type=str, default="0", help='L3 cache size in bytes ("xx KB", "xx MB" & "xx GB" are accepted)')
+parser.add_argument('--L4', type=str, default="0", help='L4 cache size in bytes ("xx KB", "xx MB" & "xx GB" are accepted)')
 group = parser.add_mutually_exclusive_group()
 group.add_argument('-l', '--linear', dest='linear', default=False, help='linear scale for Y axis', action='store_true')
 group.add_argument('-L', '--log', dest='linear', help='log scale for Y axis', action='store_false')
@@ -137,7 +137,23 @@ matplotlib.rcParams['font.family'] = 'Latin Modern Roman'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
 matplotlib.rcParams['axes.formatter.useoffset'] = False
 
-raw_caches = [0., args.L1*args.xscale, args.L2*args.xscale, args.L3*args.xscale, args.L4*args.xscale]
+def human2bytes(s):
+  res = s.split()
+  value = int(res[0])
+  if len(res) > 1:
+    if res[1] == "B":
+      value = value
+    elif res[1] == "KB":
+      value = value * 1024
+    elif res[1] == "MB":
+      value = value * 1024 * 1024
+    elif res[1] == "GB":
+      value = value * 1024 * 1024 * 1024
+    else:
+      raise RuntimeError("Unsupported format:'" + s + "'")
+  return value;
+
+raw_caches = [0., human2bytes(args.L1)*args.xscale, human2bytes(args.L2)*args.xscale, human2bytes(args.L3)*args.xscale, human2bytes(args.L4)*args.xscale]
 caches = [0.]
 
 last_cache = 0
