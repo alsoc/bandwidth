@@ -363,6 +363,84 @@ class simd<float64_t, 8> {
 #endif
 #ifdef __ARM_NEON
 template <>
+class simd<float16_t, 4> {
+  private:
+    float16x4_t inner = vdup_n_f16(0.);
+    simd(float16x4_t v) noexcept : inner(v) {}
+    operator float16x4_t() const noexcept {
+      return inner;
+    }
+  public:
+    explicit simd(float16_t val) noexcept : inner(vdup_n_f16(val)) {}
+    simd(load_addr<float16_t> la) noexcept : inner(vld1_f16(la.p)) {}
+    simd() = default;
+    simd(const simd&) = default;
+    simd& operator=(const simd&) = default;
+    ~simd() = default;
+
+    friend void vstore(float16_t* p, simd v) noexcept {
+      vst1_f16(p, v);
+    }
+    friend void vstorent(float16_t* p, simd v) noexcept {
+      vst1_f16(p, v);
+    }
+
+#ifdef __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    friend simd vadd(simd a, simd b) noexcept {
+      return vadd_f16(a, b);
+    }
+    friend simd vmul(simd a, simd b) noexcept {
+      return vmul_f16(a, b);
+    }
+    friend simd vfma(simd a, simd b, simd c) noexcept {
+      // return vmla_f16(c, a, b);
+      return vadd_f16(vmul_f16(a, b), c);
+    }
+#endif
+    friend inline __attribute((always_inline)) void vkeep(simd& a) noexcept {
+      asm volatile ("" : "+x"(a.inner));
+    }
+};
+template <>
+class simd<float16_t, 8> {
+  private:
+    float16x8_t inner = vdupq_n_f16(0.);
+    simd(float16x8_t v) noexcept : inner(v) {}
+    operator float16x8_t() const noexcept {
+      return inner;
+    }
+  public:
+    explicit simd(float16_t val) noexcept : inner(vdupq_n_f16(val)) {}
+    simd(load_addr<float16_t> la) noexcept : inner(vld1q_f16(la.p)) {}
+    simd() = default;
+    simd(const simd&) = default;
+    simd& operator=(const simd&) = default;
+    ~simd() = default;
+
+    friend void vstore(float16_t* p, simd v) noexcept {
+      vst1q_f16(p, v);
+    }
+    friend void vstorent(float16_t* p, simd v) noexcept {
+      vst1q_f16(p, v);
+    }
+
+#ifdef __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    friend simd vadd(simd a, simd b) noexcept {
+      return vaddq_f16(a, b);
+    }
+    friend simd vmul(simd a, simd b) noexcept {
+      return vmulq_f16(a, b);
+    }
+    friend simd vfma(simd a, simd b, simd c) noexcept {
+      // return vmlaq_f16(c, a, b);
+      return vaddq_f16(vmulq_f16(a, b), c);
+    }
+#endif
+    friend inline __attribute((always_inline)) void vkeep(simd& a) noexcept {
+      asm volatile ("" : "+w"(a.inner));
+    }
+};
+template <>
 class simd<float32_t, 2> {
   private:
     float32x2_t inner = vdup_n_f32(0.f);

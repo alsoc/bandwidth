@@ -87,19 +87,30 @@ namespace {
       bandwidth b;
       b.kern = N;
       b.nontemporal = nt;
+#ifdef F16_MEM_OPS
+      b.read_f16 = &read;
+      b.write_f16 = &write;
+      b.copy_f16 = &copy;
+#endif
+#if defined(F16_MEM_OPS) && defined(F16_ARI_OPS)
+      b.incr_f16 = &incr;
+      b.scale_f16 = &scale;
+      b.add_f16 = &add;
+      b.triad_f16 = &triad;
+#endif
       b.read_f32 = &read;
-      b.read_f64 = &read;
       b.write_f32 = &write;
-      b.write_f64 = &write;
       b.copy_f32 = &copy;
-      b.copy_f64 = &copy;
       b.incr_f32 = &incr;
-      b.incr_f64 = &incr;
       b.scale_f32 = &scale;
-      b.scale_f64 = &scale;
       b.add_f32 = &add;
-      b.add_f64 = &add;
       b.triad_f32 = &triad;
+      b.read_f64 = &read;
+      b.write_f64 = &write;
+      b.copy_f64 = &copy;
+      b.incr_f64 = &incr;
+      b.scale_f64 = &scale;
+      b.add_f64 = &add;
       b.triad_f64 = &triad;
       return b;
     }

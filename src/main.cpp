@@ -32,6 +32,9 @@ template <class T>
 constexpr const char* name() noexcept {
   return __PRETTY_FUNCTION__;
 }
+#ifdef F16
+template <> constexpr const char* name<float16_t>() noexcept { return "f16"; }
+#endif
 template <> constexpr const char* name<float32_t>() noexcept { return "f32"; }
 template <> constexpr const char* name<float64_t>() noexcept { return "f64"; }
 
@@ -490,6 +493,9 @@ int main(int argc, char *argv[]) {
     std::cerr << "min: " << bytes(min_size) << "\tmax: " << bytes(max_size) << "\tcost: " << cost << "\tn: " << n << " (" << sizes.size() << ")\tgranularity: " << bytes(granularity) << std::endl;
   }
 
+#ifdef F16
+  test<float16_t>(sizes, cost);
+#endif
   test<float32_t>(sizes, cost);
   test<float64_t>(sizes, cost);
 
