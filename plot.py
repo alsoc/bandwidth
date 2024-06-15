@@ -312,8 +312,8 @@ if len(caches) > 1:
   ax.annotate("RAM", xy=((lastx*xmax)**0.5, top), xycoords='data', xytext=(0., -5.), textcoords='offset points', horizontalalignment='center', verticalalignment='top')
 
 
-ax.grid(b=True, which='major', color="black", alpha=4./30., linewidth=0.5)
-ax.grid(b=True, which='minor', color="black", alpha=1.5/30., linewidth=0.5)
+ax.grid(visible=True, which='major', color="black", alpha=4./30., linewidth=0.5)
+ax.grid(visible=True, which='minor', color="black", alpha=1.5/30., linewidth=0.5)
 
 extra_artists = []
 if args.legend:
