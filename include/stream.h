@@ -1,6 +1,7 @@
 #ifndef STREAM_H
 #define STREAM_H
 #include "simd.h"
+#include <stdio.h>
 #ifndef restrict
 #define restrict __restrict__
 #endif

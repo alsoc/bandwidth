@@ -12,6 +12,9 @@
 #ifdef __ALTIVEC__
 #include <altivec.h>
 #endif
+#ifdef __riscv_v_intrinsic
+#include <riscv_vector.h>
+#endif
 
 template <class T>
 struct load_addr {
@@ -685,6 +688,98 @@ class simd<float64_t, 2> {
 };
 #endif
 #endif
+#ifdef __riscv_v_intrinsic
+template <>
+class simd<float32_t, __riscv_v_fixed_vlen / sizeof(float32_t) / 8> {
+    // WIP RVV version: we assume 256-bits vector
+    typedef vfloat32m1_t fixed_vfloat32m1_t __attribute__((riscv_rvv_vector_bits(__riscv_v_fixed_vlen)));
+    
+  private:
+    static constexpr unsigned inner_vl = __riscv_v_fixed_vlen / sizeof(float32_t) / 8 ; // Hard-coded for now
+    fixed_vfloat32m1_t inner;
+    
+    simd(vfloat32m1_t v) noexcept : inner(v) {}
+    operator vfloat32m1_t() const noexcept {
+      return inner;
+    }
+  public:
+    explicit simd(float32_t val) noexcept : inner(__riscv_vfmv_v_f_f32m1(val, inner_vl)) {}
+    simd(load_addr<float32_t> la) noexcept : inner(__riscv_vle32_v_f32m1(la.p, inner_vl)) {}
+    simd() noexcept {
+	inner = __riscv_vfmv_v_f_f32m1(0.f, inner_vl);
+    }
+    simd(const simd&) = default;
+    simd& operator=(const simd&) = default;
+    ~simd() = default;
+
+    friend void vstore(float32_t* p, simd v) noexcept {
+      __riscv_vse32_v_f32m1(p, v.inner, inner_vl);
+    }
+    friend void vstorent(float32_t* p, simd v) noexcept {
+      __riscv_vse32_v_f32m1(p, v.inner, inner_vl); // TODO: Check if RVV has streaming instructions
+    }
+
+    friend simd vadd(simd a, simd b) noexcept {
+      return __riscv_vfadd_vv_f32m1(a.inner, b.inner, inner_vl);
+    }
+    friend simd vmul(simd a, simd b) noexcept {
+	return __riscv_vfmul_vv_f32m1(a.inner, b.inner, inner_vl);
+    }
+    friend simd vfma(simd a, simd b, simd c) noexcept {
+      return __riscv_vfmacc_vv_f32m1(c.inner, a.inner, b.inner, inner_vl); // a*b + c
+    }
+    friend inline __attribute((always_inline)) void vkeep(simd& a) noexcept {
+	asm volatile ("" : "+vr"(a.inner));
+    }
+};
+
+template <>
+class simd<float64_t, __riscv_v_fixed_vlen / sizeof(float64_t) / 8> {
+    // WIP RVV version: we assume 256-bits vector
+    typedef vfloat64m1_t fixed_vfloat64m1_t __attribute__((riscv_rvv_vector_bits(__riscv_v_fixed_vlen)));
+    
+  private:
+    static constexpr unsigned inner_vl = __riscv_v_fixed_vlen / sizeof(float64_t) / 8 ; // Hard-coded for now
+    fixed_vfloat64m1_t inner;
+    
+    simd(vfloat64m1_t v) noexcept : inner(v) {}
+    operator vfloat64m1_t() const noexcept {
+      return inner;
+    }
+  public:
+    explicit simd(float64_t val) noexcept : inner(__riscv_vfmv_v_f_f64m1(val, inner_vl)) {}
+    simd(load_addr<float64_t> la) noexcept : inner(__riscv_vle64_v_f64m1(la.p, inner_vl)) {}
+    simd() noexcept {
+	inner = __riscv_vfmv_v_f_f64m1(0.f, inner_vl);
+    }
+    simd(const simd&) = default;
+    simd& operator=(const simd&) = default;
+    ~simd() = default;
+
+    friend void vstore(float64_t* p, simd v) noexcept {
+      __riscv_vse64_v_f64m1(p, v.inner, inner_vl);
+    }
+    friend void vstorent(float64_t* p, simd v) noexcept {
+      __riscv_vse64_v_f64m1(p, v.inner, inner_vl); // TODO: Check if RVV has streaming instructions
+    }
+
+    friend simd vadd(simd a, simd b) noexcept {
+      return __riscv_vfadd_vv_f64m1(a.inner, b.inner, inner_vl);
+    }
+    friend simd vmul(simd a, simd b) noexcept {
+	return __riscv_vfmul_vv_f64m1(a.inner, b.inner, inner_vl);
+    }
+    friend simd vfma(simd a, simd b, simd c) noexcept {
+      return __riscv_vfmacc_vv_f64m1(c.inner, a.inner, b.inner, inner_vl); // a*b + c
+    }
+    friend inline __attribute((always_inline)) void vkeep(simd& a) noexcept {
+	asm volatile ("" : "+vr"(a.inner));
+    }
+};
+
+
+#endif
+
 
 template <int N, class T>
 simd<T, N> vload(const T* p) {
