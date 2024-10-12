@@ -133,13 +133,13 @@ matplotlib.rcParams['grid.linewidth'] = 0.5
 matplotlib.rcParams['grid.color'] = '#000000'
 matplotlib.rcParams['grid.alpha'] = 2./15. # 0.133
 
-matplotlib.rcParams['font.family'] = 'Latin Modern Roman'
+#matplotlib.rcParams['font.family'] = 'Latin Modern Roman'
 matplotlib.rcParams['mathtext.fontset'] = 'cm'
 matplotlib.rcParams['axes.formatter.useoffset'] = False
 
 def human2bytes(s):
   res = s.split()
-  value = int(res[0])
+  value = float(res[0])
   if len(res) > 1:
     if res[1] == "B":
       value = value
@@ -220,7 +220,7 @@ if args.speedup:
   s = series[args.speedup][-10:]
   if len(s) > 0:
     ram_bw = sum(s) / len(s)
-  
+
 
 if args.out:
   fig = plt.figure(figsize=[6.,4.])
@@ -306,7 +306,7 @@ if len(caches) > 1:
         ax.annotate("", (xmid, ram_bw), (xmid, y), arrowprops=dict(arrowstyle='<->', linewidth=0.5))
         plt.annotate(u"×{:0.2g}".format(y / ram_bw), xy=(xmid, ymid), xycoords='data', xytext=(3., 0.), textcoords='offset points', horizontalalignment='left', verticalalignment='center')
 
-      
+
     lastx = x
   ax.axvspan(lastx, xmax, alpha=a, color=colors[-1], linewidth=0.)
   ax.annotate("RAM", xy=((lastx*xmax)**0.5, top), xycoords='data', xytext=(0., -5.), textcoords='offset points', horizontalalignment='center', verticalalignment='top')
