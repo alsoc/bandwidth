@@ -21,7 +21,8 @@ Main advantages of `bandwidth` over
 
 Known limitations:
 
-- The code works "only" for AltiVec, SSE, AVX, AVX-512 or NEON capable CPUs
+- The code works "only" for AltiVec, SSE, AVX, AVX-512, NEON or RVV 1.0 capable 
+  CPUs
   * It represents most of the available SIMD CPUs of the market
   * However, for now, **SVE is not supported**
 - The code only compiles with the C++ GNU Compiler (`g++`)
@@ -52,6 +53,15 @@ mkdir build
 cd build
 cmake .. -DCMAKE_CXX_COMPILER=g++ -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=native" -DENABLE_OMP=ON -DENABLE_F16=ON
 make -j4
+```
+
+To compile for RVV 1.0 compatible architectures you need to use a compiler that 
+supports fixed-lenght RVV (typically C++ GNU Compiler version >= 14). Then, at 
+the compile time you will have to specify the hardware `vlen`. For instance, if
+your hardware has 256-bit SIMD registers, you can do (pay attention to the 
+`zvl256b` flag):
+```bash
+cmake .. -DCMAKE_CXX_COMPILER=g++ -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=rv64gv1_zve32f_zvl256b -mrvv-vector-bits=zvl" -DENABLE_OMP=ON -DENABLE_F16=OFF
 ```
 
 Now you can run the code:
